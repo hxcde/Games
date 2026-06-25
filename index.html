@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0c0a1f">
+<!-- Cache buster: force browsers to revalidate this file instead of serving a stale copy -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Block Blast</title>
 <style>
   :root {
@@ -264,6 +268,16 @@
     25% { transform: translate(-50%,-50%) scale(1.15); opacity: 1; }
     100% { transform: translate(-50%,-140%) scale(1); opacity: 0; }
   }
+  #version {
+    position: fixed;
+    right: 8px;
+    bottom: calc(4px + env(safe-area-inset-bottom));
+    z-index: 5;
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    opacity: 0.35;
+    pointer-events: none;
+  }
 </style>
 </head>
 <body>
@@ -280,6 +294,7 @@
   <div id="tray"></div>
 </div>
 <div id="ghost"></div>
+<div id="version"></div>
 <div id="overlay">
   <div class="panel">
     <h1>Game Over</h1>
@@ -289,6 +304,11 @@
 </div>
 <script>
 (() => {
+  // Bump BUILD on every change so a cached page reveals it's stale at a glance.
+  const BUILD = '2026.06.25.1';
+  const vEl = document.getElementById('version');
+  if (vEl) vEl.textContent = 'Build ' + BUILD;
+
   const SIZE = 8;
   const COLORS = ['#ff5d73','#ffa14a','#ffd23f','#5ee06b','#3fc7ff','#7c8cff','#c46bff','#ff6bd5'];
 
