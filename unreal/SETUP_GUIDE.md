@@ -95,6 +95,18 @@ Mitgeliefert in diesem Ordner:
 - **Schritt 10 (Perf):** `stat unit`, `stat GPU`, `ProfileGPU`, Unreal Insights;
   nach jeder Änderung gegen das FPS-Budget prüfen.
 
+## Mitgelieferte C++-Helfer (minimiert Editor-Arbeit)
+- **`ASunsetGameMode`** — setzt `ASunsetCharacter` als Player Pawn. In Project
+  Settings → Maps & Modes als Default GameMode wählen (oder BP-Kind davon).
+- **`ASunsetTrafficCar`** — Auto mit eigener **Spline als Route**: in den Level
+  ziehen, Spline entlang einer Straße formen, Auto-Mesh + `Speed` zuweisen → fährt.
+- **`ASunsetCitySpawner`** — **datengetriebenes Platzieren**: einen in den Level
+  setzen, die drei DataTables (`Content/Data/*.csv`) + Klassen (ShopClass,
+  InteractionClass mit `UInteractableComponent`, PedestrianClass) zuweisen, dann
+  im Details-Panel **„Build City"** drücken → Shops, Interaktionen und NPCs
+  erscheinen an den Referenz-Positionen. „Clear City" entfernt sie wieder.
+  (Achsen-/Maßstab-Mapping ist im Header dokumentiert, Default ×100.)
+
 ## Checkliste nach jeder größeren Änderung
 1. **FPS** (`stat unit`) → 2. **Begehbarkeit** (`show Collision`, PIE) →
 3. **Clipping** (Bäume/Props/Schilder nicht in Wänden) → 4. **Optik aus Spielersicht**.
