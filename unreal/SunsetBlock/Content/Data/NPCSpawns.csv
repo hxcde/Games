@@ -1,0 +1,11 @@
+Name,Role,X_m,Z_m,PathHint
+Cust1,Customer,7,24,vor Neo-Ramen
+Cust2,Customer,7,12,vor Akari Cyberware
+Cust3,Customer,-7,30,vor Mini-Markt
+Vendor1,Vendor,7,26,Ramen-Stand
+Sec1,Security,-7,16,Parkhaus-Eingang
+Ped1,Pedestrian,6.3,40,Gehweg Ostseite (laeuft -Z)
+Ped2,Pedestrian,-6.3,-40,Gehweg Westseite (laeuft +Z)
+Ped3,Pedestrian,6.3,-10,Gehweg Ostseite
+Ped4,Pedestrian,-6.3,55,Gehweg Westseite
+Homeless1,Homeless,7,-12,sitzt an der Wand

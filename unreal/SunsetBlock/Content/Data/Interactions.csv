@@ -1,0 +1,5 @@
+Name,Who,Prompt,Line1,Line2,X_m,Y_m,Z_m
+AdScreen,SYNTH-CORP // Ad-Net,Werbescreen lesen,"BLEIB VERNETZT. BLEIB SICHER. BLEIB SYNTH.","Stoermeldung: Sektor 7 Stromnetz instabil.",-20,9,-20
+Terminal,Stadt-Terminal // Insel 7,Terminal benutzen,"WILLKOMMEN AUF INSEL 7.","Park im Osten, Parkhaus im Westen, Hauptstrasse nach Sueden zur Hafenkante.",-20,1.4,-17
+Door,Parkhaus // Wachraum,Tuer oeffnen,"Verschlossen. Drinnen flackert ein Monitor.","Zugang nur mit Karte.",-8,1.2,16
+Vendor,Old Hideo // Neo-Ramen,Mit Haendler reden,"Setz dich, Choom. Heute Tonkotsu.","Pass auf in der Gasse da hinten.",7,1.7,26
