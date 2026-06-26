@@ -59,6 +59,7 @@ Frei bewegen; Fadenkreuz auf ein Objekt → `E` / **USE**:
 | Maus | Umsehen |
 | `Shift` | Rennen |
 | `E` | Interagieren |
+| `G` / ⚙ | Grafik: Upscaling (Off/Quality/Balanced/Performance/Ultra) |
 | Touch | Joystick (links) + Wischen (rechts) + **USE** |
 
 `?low=1` an die URL hängt = Performance-Modus (kleinere Schatten, kein MSAA) fürs Handy.

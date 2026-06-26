@@ -21,7 +21,20 @@ export function createAgents(scene, A, ctx) {
   const tireMat = new THREE.MeshStandardMaterial({ color: 0x0c0d10, roughness: 0.9, metalness: 0.1, map: tireTex() });
   const rim = new THREE.MeshStandardMaterial({ color: T['metal_plate_02'].map?0xb8bcc2:0xb8bcc2, metalness: 1, roughness: 0.3, map: T['metal_plate_02'].map, normalMap: T['metal_plate_02'].normalMap });
   function paintMat(color, old=false){ if(old) return new THREE.MeshStandardMaterial({ color, map:T['rusty_metal_03'].map, normalMap:T['rusty_metal_03'].normalMap, roughnessMap:T['rusty_metal_03'].roughnessMap, metalness:0.5, roughness:0.7, envMapIntensity:0.8 });
-    return new THREE.MeshPhysicalMaterial({ color, metalness:0.6, roughness:0.35, clearcoat:1, clearcoatRoughness:0.25, envMapIntensity:1.4 }); }
+    return new THREE.MeshPhysicalMaterial({ color, metalness:0.6, roughness:0.45, clearcoat:0.8, clearcoatRoughness:0.4, envMapIntensity:1.3 }); }
+  // shared LED/accent materials (no per-car dynamic lights)
+  const ledMats = [0x39d2ff,0xff4db0,0x7dffc0,0x6a8bff].map(c=>new THREE.MeshStandardMaterial({color:0x0a0a0c,emissive:c,emissiveIntensity:2.2,roughness:0.5}));
+  const sensorMat = new THREE.MeshStandardMaterial({ color:0x14151a, metalness:0.6, roughness:0.4 });
+  function carDetails(g, w, len){
+    const led = ledMats[Math.floor(Math.random()*ledMats.length)];
+    // underglow strip
+    const ug=new THREE.Mesh(new THREE.BoxGeometry(w*0.95,0.04,len*0.9),led); ug.position.y=0.22; g.add(ug);
+    // thin front accent line
+    const fa=new THREE.Mesh(new THREE.BoxGeometry(w*0.8,0.05,0.05),led); fa.position.set(0,0.5,len/2+0.02); g.add(fa);
+    // roof sensor pod + camera dot
+    const pod=new THREE.Mesh(new THREE.BoxGeometry(0.24,0.12,0.3),sensorMat); pod.position.set(0,1.5,-0.3); g.add(pod);
+    const dot=new THREE.Mesh(new THREE.SphereGeometry(0.04,6,6),led); dot.position.set(0,1.5,-0.15); g.add(dot);
+  }
   function plateTex(){ const c=document.createElement('canvas'); c.width=128;c.height=40; const g=c.getContext('2d'); g.fillStyle='#d8d8c0'; g.fillRect(0,0,128,40); g.fillStyle='#15151a'; g.font='bold 26px monospace'; g.textAlign='center'; g.textBaseline='middle'; const s='NX-'+(1000+Math.floor(Math.random()*8999)); g.fillText(s,64,21); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; }
   function wheel(g,x,z){ const w=new THREE.Mesh(new THREE.CylinderGeometry(0.37,0.37,0.32,18),tireMat); w.rotation.z=Math.PI/2; w.position.set(x,0.37,z); w.castShadow=true; g.add(w);
     const r=new THREE.Mesh(new THREE.CylinderGeometry(0.21,0.21,0.34,12),rim); r.rotation.z=Math.PI/2; r.position.set(x,0.37,z); g.add(r); }
@@ -45,6 +58,7 @@ export function createAgents(scene, A, ctx) {
     for (const sx of [-0.98,0.98]){ const mr=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.12,0.1),trim); mr.position.set(sx,1.05,0.9); g.add(mr); }
     plate(g,2.27); plate(g,-2.27);
     wheel(g,-0.92,1.4); wheel(g,0.92,1.4); wheel(g,-0.92,-1.5); wheel(g,0.92,-1.5);
+    carDetails(g,1.85,4.3);
     g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}}); return g;
   }
   function makeVan(color){
@@ -58,6 +72,7 @@ export function createAgents(scene, A, ctx) {
       const tl=new THREE.Mesh(new THREE.PlaneGeometry(0.3,0.3),tailMat); tl.position.set(sx,1.0,-2.21); tl.rotation.y=Math.PI; g.add(tl); }
     plate(g,2.7); plate(g,-2.25);
     wheel(g,-0.98,1.55); wheel(g,0.98,1.55); wheel(g,-0.98,-1.65); wheel(g,0.98,-1.65);
+    carDetails(g,2.05,3.4);
     g.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}}); return g;
   }
   function makeBike(color){
@@ -124,6 +139,12 @@ export function createAgents(scene, A, ctx) {
   // security + homeless
   const sec=human(0x20242c,idleClip,1.05); sec.position.set(-7.2,GY+A.footOffset,14); sec.rotation.y=Math.PI/2+FACE;
   const hobo=human(0x4a4034,idleClip,0.9); hobo.position.set(7.0,GY+A.footOffset,-12); hobo.rotation.y=-Math.PI/2+FACE; hobo.scale.set(0.95,0.6,0.95);
+
+  // customers idle in front of shops (logical placement, not random)
+  const customers=[[6.4,26,Math.PI/2],[6.4,14,Math.PI/2],[6.4,56,Math.PI/2],[-6.4,30,-Math.PI/2],[-6.4,52,-Math.PI/2]];
+  for(const [cx,cz,ry] of customers){ const c=human(pick(JACKETS),idleClip,0.95+Math.random()*0.12); c.position.set(cx+rnd(-0.4,0.4),GY+A.footOffset,cz+rnd(-1,1)); c.rotation.y=ry+FACE; }
+  // extra security near the parking entrance
+  const sec2=human(0x20242c,idleClip,1.05); sec2.position.set(-6.6,GY+A.footOffset,16); sec2.rotation.y=-Math.PI/2+FACE;
 
   // ---------- delivery drone -----------------------------------------------
   const drone=new THREE.Group();

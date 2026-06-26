@@ -11,6 +11,7 @@ const COOL = [0x39d2ff, 0xff6db0, 0x6a8bff, 0x7dffc0, 0xffae5e];
 export function buildCity(scene, A, ctx) {
   const colliders = ctx.colliders, steam = ctx.steam, T = A.tex;
   const screens = [];
+  const treeXf = [];   // collected tree transforms -> built as InstancedMesh (perf)
   const rnd = (a,b)=>a+Math.random()*(b-a), pick = a=>a[Math.floor(Math.random()*a.length)];
   const tmp = new THREE.Object3D();
 
@@ -92,14 +93,16 @@ export function buildCity(scene, A, ctx) {
     return {cx:(x0+x1)/2,cz:(z0+z1)/2,w:iw,d:id}; }
 
   // ---- districts -----------------------------------------------------------
-  function placeTree(x,y,z){ if(!A.tree) return; const t=A.tree.clone(); const s=A.treeScale*rnd(0.85,1.3); t.scale.setScalar(s); t.position.set(x, y - A.treeMinY*s, z); t.rotation.y=rnd(0,Math.PI*2); scene.add(t); }
+  function placeTree(x,y,z){ if(!A.tree) return;
+    for(const t of treeXf){ const dx=t.x-x,dz=t.z-z; if(dx*dx+dz*dz<9) return; }   // min 3 m spacing -> no clipping
+    const s=A.treeScale*rnd(0.85,1.3); treeXf.push({x, y:y - A.treeMinY*s, z, s, rotY:rnd(0,Math.PI*2)}); }
   function alleyClutter(x,z){ if(Math.random()<0.6) trash(x+rnd(-0.6,0.6),z+rnd(-0.6,0.6)); if(Math.random()<0.6) box(x+rnd(-0.6,0.6),z+rnd(-0.6,0.6),rnd(0.4,0.7)); if(Math.random()<0.4) pipe(x+rnd(-0.5,0.5),0.3,rnd(5,12),z+rnd(-0.5,0.5)); if(Math.random()<0.3) steam.push({x,y:0.25,z,rate:0.25}); }
   // denser blocks: many smaller buildings separated by narrow walkable alleys
   function districtBuildings(x0,x1,z0,z1){
     pad(x0,x1,z0,z1,matPave);
     const inset=1.2; x0+=inset;x1-=inset;z0+=inset;z1-=inset; const W=x1-x0,D=z1-z0;
     const nx=Math.max(1,Math.round(W/12)), nz=Math.max(1,Math.round(D/12)); const gx=W/nx, gz=D/nz;
-    const a=0.95; // half alley width
+    const a=1.15; // half alley width (wide enough for the player capsule)
     for (let i=0;i<nx;i++) for (let j=0;j<nz;j++){
       const bx0=x0+i*gx+a, bx1=x0+(i+1)*gx-a, bz0=z0+j*gz+a, bz1=z0+(j+1)*gz-a;
       if (bx1-bx0<3.5||bz1-bz0<3.5) continue;
@@ -116,7 +119,7 @@ export function buildCity(scene, A, ctx) {
     for (const [w,d,px,pz] of [[x1-x0-2,3,cx,cz],[3,z1-z0-2,cx,cz]]){ const p=new THREE.Mesh(new THREE.BoxGeometry(w,0.04,d),matPave); planeUVbox(p.geometry); p.position.set(px,0.3,pz); p.receiveShadow=true; scene.add(p); }
     function planeUVbox(geo){ scaleUV(geo,4,1,4,2); }
     // real trees (photogrammetry model, instanced clones)
-    for (let i=0;i<6;i++){ const tx=rnd(x0+2.5,x1-2.5),tz=rnd(z0+2.5,z1-2.5); if (Math.abs(tx-cx)<2.8&&Math.abs(tz-cz)<2.8) continue; placeTree(tx,0.24,tz); }
+    for (let i=0;i<10;i++){ const tx=rnd(x0+2.5,x1-2.5),tz=rnd(z0+2.5,z1-2.5); if (Math.abs(tx-cx)<2.8&&Math.abs(tz-cz)<2.8) continue; placeTree(tx,0.24,tz); }
     // benches + lamps + fountain
     for (let i=0;i<4;i++){ bench(rnd(x0+3,x1-3),rnd(z0+3,z1-3),rnd(0,6)); }
     parkLamp(cx-6,cz-6); parkLamp(cx+6,cz+6); parkLamp(cx+6,cz-6); parkLamp(cx-6,cz+6);
@@ -257,6 +260,19 @@ export function buildCity(scene, A, ctx) {
   shopfront(8,14,-1,'AKARI CYBERWARE','#39d2ff');
   shopfront(8,56,-1,'PAWN 24H','#ffd23f');
   shopfront(8,64,-1,'THE WIRED BAR','#ff4db0');
+  shopfront(-8,30,1,'STOP-N-GO','#6a8bff');       // Mini-Markt (Westseite)
+  shopfront(-8,52,1,'FIXIT CYBERTECH','#ffae5e');  // Repair-Shop (Westseite)
+
+  // market stalls, seating cluster, delivery pallets (pedestrian-zone life)
+  function stall(x,z,rotY,color){ const g=new THREE.Group();
+    const top=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.1,1.6),new THREE.MeshStandardMaterial({color,roughness:0.8})); top.position.y=2.2; g.add(top);
+    const cnt=new THREE.Mesh(new THREE.BoxGeometry(2.2,1.0,1.2),matDark); cnt.position.y=0.5; g.add(cnt);
+    for(const sx of [-1,1]) for(const sz of [-1,1]){ const leg=new THREE.Mesh(new THREE.BoxGeometry(0.08,2.2,0.08),matMetal); leg.position.set(sx*1.05,1.1,sz*0.7); g.add(leg); }
+    g.position.set(x,0.2,z); g.rotation.y=rotY; scene.add(g); steam.push({x,y:1.2,z,rate:0.2}); }
+  stall(ROAD_HALF+2, 8, 0, 0x7a2b2b); stall(ROAD_HALF+2, 4, 0, 0x2b3b6b); stall(-(ROAD_HALF+2), -6, Math.PI, 0x3b3b2b);
+  function pallet(x,z){ const p=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.2,1.2),matRust); p.position.set(x,0.3,z); scene.add(p);
+    for(let i=0;i<3;i++){ const bx=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.5,0.5),new THREE.MeshStandardMaterial({color:0x6b5a3f,roughness:0.95})); bx.position.set(x+rnd(-0.3,0.3),0.6+i*0.5,z+rnd(-0.3,0.3)); bx.rotation.y=rnd(0,6); scene.add(bx); } }
+  pallet(-(FRONT-1.2),18); pallet(FRONT-1.2,-30);   // Lieferzonen
   // vending machines near ramen
   for (let i=0;i<3;i++){ const x=8.5,z=20+i*1.3; const vm=new THREE.Mesh(new THREE.BoxGeometry(1.1,2,0.8),matDark); vm.position.set(x,1,z); vm.castShadow=true; scene.add(vm);
     const face=decal(makeScreen(i),1,1.7,x-0.41,1.1,z,-Math.PI/2); face.material.emissive=new THREE.Color(0xffffff); face.material.emissiveMap=face.material.map; face.material.emissiveIntensity=1.1; face.material.transparent=false; screens.push(face.material);
@@ -269,6 +285,34 @@ export function buildCity(scene, A, ctx) {
   for (let i=0;i<10;i++){ const r=pick(ROADS); box(r+rnd(-5,5),rnd(-ISLAND+12,ISLAND-12),rnd(0.4,0.8)); }
   for (let i=0;i<10;i++){ const r=pick(ROADS); trash(r+rnd(-5,5),rnd(-ISLAND+12,ISLAND-12)); }
   for (const r of ROADS) for (let p=-ISLAND+16;p<ISLAND-10;p+=22) gully(r+ROAD_HALF-1,p);
+
+  // ---- ground decals: oil stains, tyre marks, manholes (dry, worn look) ----
+  function stainTex(){ const s=128,c=document.createElement('canvas'); c.width=c.height=s; const g=c.getContext('2d'); g.clearRect(0,0,s,s);
+    for(let i=0;i<5;i++){ const x=rnd(30,98),y=rnd(30,98),r=rnd(18,42); const rg=g.createRadialGradient(x,y,0,x,y,r); rg.addColorStop(0,'rgba(8,7,6,0.55)'); rg.addColorStop(1,'rgba(8,7,6,0)'); g.fillStyle=rg; g.fillRect(0,0,s,s); }
+    const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; }
+  function tyreTex(){ const s=128,c=document.createElement('canvas'); c.width=c.height=s; const g=c.getContext('2d'); g.clearRect(0,0,s,s); g.fillStyle='rgba(10,9,8,0.5)'; g.fillRect(40,4,14,120); g.fillRect(74,4,14,120); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; }
+  function manholeTex(){ const s=128,c=document.createElement('canvas'); c.width=c.height=s; const g=c.getContext('2d'); g.clearRect(0,0,s,s); g.fillStyle='#1a1a1e'; g.beginPath(); g.arc(64,64,52,0,7); g.fill(); g.strokeStyle='#2c2c30'; g.lineWidth=3; for(let r=12;r<52;r+=10){ g.beginPath(); g.arc(64,64,r,0,7); g.stroke(); } const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; }
+  const stainT=stainTex(), tyreT=tyreTex(), manT=manholeTex();
+  function gdecal(tex,w,h,x,z,rotY){ const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshStandardMaterial({map:tex,transparent:true,roughness:0.95,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4})); m.rotation.x=-Math.PI/2; m.rotation.z=rotY||0; m.position.set(x,0.03,z); scene.add(m); }
+  for(let i=0;i<8;i++){ gdecal(stainT, rnd(2,4), rnd(2,4), pick(ROADS)+rnd(-3,3), rnd(-ISLAND+14,ISLAND-14)); }
+  for(let i=0;i<5;i++){ gdecal(tyreT, 1.6, rnd(5,9), pick(ROADS)+rnd(-2,2), rnd(-ISLAND+16,ISLAND-16)); }
+  for(const r of ROADS) for(const p of [-ISLAND/2, ISLAND/2]) gdecal(manT, 1.2, 1.2, r+ROAD_HALF-1.5, p);
+
+  // a few street trees along the main sidewalks (more "boulevard" feel)
+  for (const z of [-58, -34, 34, 58]) { placeTree(FRONT-0.8, 0.26, z); placeTree(-(FRONT-0.8), 0.26, z); }
+
+  // ---- commit trees as InstancedMesh (one batch per tree sub-mesh) ----------
+  if (A.tree && treeXf.length) {
+    A.tree.updateMatrixWorld(true);
+    const subs = []; A.tree.traverse(o => { if (o.isMesh) subs.push({ geo: o.geometry, mat: o.material, off: o.matrixWorld.clone() }); });
+    const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), E = new THREE.Euler(), P = new THREE.Vector3(), S = new THREE.Vector3();
+    for (const sub of subs) {
+      const im = new THREE.InstancedMesh(sub.geo, sub.mat, treeXf.length);
+      im.castShadow = true; im.receiveShadow = true; im.frustumCulled = false;
+      treeXf.forEach((t, i) => { E.set(0, t.rotY, 0); Q.setFromEuler(E); P.set(t.x, t.y, t.z); S.set(t.s, t.s, t.s); M.compose(P, Q, S); M.multiply(sub.off); im.setMatrixAt(i, M); });
+      im.instanceMatrix.needsUpdate = true; scene.add(im);
+    }
+  }
 
   return { colliders, steam, screens };
 }

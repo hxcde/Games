@@ -16,7 +16,8 @@ const LOW = new URLSearchParams(location.search).has('low');
 
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, LOW ? 1 : 1.75));
+const BASE_PR = Math.min(devicePixelRatio, LOW ? 1 : 1.75);
+renderer.setPixelRatio(BASE_PR);
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.16;          // dusk (lifted so shadows/interiors read)
@@ -124,9 +125,17 @@ function buildWorld(A){
   sunC.position.copy(sunDir).multiplyScalar(890); sunC.scale.setScalar(90); scene.add(sunC);
 
   const interactables=[];
-  const ctx={ colliders:[], steam:[], blink:[], walkables:[], lightBudget:{n:0,max:LOW?12:24}, addInteractable:(o,d)=>interactables.push({obj:o,def:d}) };
+  const ctx={ colliders:[], steam:[], blink:[], walkables:[], lightBudget:{n:0,max:LOW?10:18}, addInteractable:(o,d)=>interactables.push({obj:o,def:d}) };
   const city=buildCity(scene,A,ctx);
   const agents=createAgents(scene,A,ctx);
+
+  // PERF: only large objects (buildings, big structures, instanced trees) cast
+  // shadows. Turn shadow-casting off for all small props/signs/wheels/etc.
+  const _sz=new THREE.Vector3();
+  scene.traverse(o=>{ if(o.isMesh && !o.isInstancedMesh && o.castShadow && o.geometry){
+    if(!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+    o.geometry.boundingBox.getSize(_sz);
+    if (Math.max(_sz.x,_sz.y,_sz.z) < 4) o.castShadow=false; } });
 
   // dust motes
   const DN=460,dp=new Float32Array(DN*3); for(let i=0;i<DN;i++){dp[i*3]=(Math.random()-0.5)*70;dp[i*3+1]=Math.random()*18;dp[i*3+2]=(Math.random()-0.5)*70;}
@@ -168,6 +177,23 @@ const GradeShader={ uniforms:{ tDiffuse:{value:null}, uTime:{value:0}, uVig:{val
       gl_FragColor=vec4(clamp(col,0.0,1.0),1.0); }` };
 const grade=new ShaderPass(GradeShader); composer.addPass(grade);
 
+// --- Upscaling (resolution scaling = WebGL DLSS-equivalent) ---------------
+let renderScale = parseFloat(localStorage.getItem('sb_scale')||'1') || 1;
+function applyRenderScale(s){
+  renderScale = Math.max(0.3, Math.min(1, s));
+  localStorage.setItem('sb_scale', String(renderScale));
+  const pr = BASE_PR * renderScale;
+  renderer.setPixelRatio(pr); composer.setPixelRatio(pr); composer.setSize(innerWidth, innerHeight);
+  document.querySelectorAll('#upscale button').forEach(b => b.classList.toggle('active', Math.abs(parseFloat(b.dataset.s)-renderScale) < 0.001));
+}
+{
+  const gear=document.getElementById('gear'), panel=document.getElementById('settings');
+  gear.addEventListener('click', ()=> panel.classList.toggle('show'));
+  addEventListener('keydown', e=>{ if(e.code==='KeyG') panel.classList.toggle('show'); });
+  document.querySelectorAll('#upscale button').forEach(b => b.addEventListener('click', ()=> applyRenderScale(parseFloat(b.dataset.s))));
+}
+applyRenderScale(renderScale);
+
 // ---- controls / movement / interaction ------------------------------------
 const controls=new PointerLockControls(camera,renderer.domElement);
 const keys={}; addEventListener('keydown',e=>{keys[e.code]=true; if(e.code==='KeyE')onUse();}); addEventListener('keyup',e=>{keys[e.code]=false;});
@@ -175,7 +201,7 @@ function startGame(){ overlay.classList.add('hidden'); hud.classList.add('playin
 playBtn.addEventListener('click',()=>{ if(!playBtn.disabled)startGame(); });
 controls.addEventListener('unlock',()=>{ if(!isTouch&&!dialogueOpen){ overlay.classList.remove('hidden'); hud.classList.remove('playing'); } });
 
-const vel=new THREE.Vector3(),dir=new THREE.Vector3(),PR=0.5;
+const vel=new THREE.Vector3(),dir=new THREE.Vector3(),PR=0.4;
 // vertical traversal: sample ground/stairs/platform height under the player
 const downRay=new THREE.Raycaster(); downRay.far=140; const _o=new THREE.Vector3(), DOWN=new THREE.Vector3(0,-1,0), _right=new THREE.Vector3(); let floorY=0;
 function sampleFloor(pos){ if(!world||!world.walkables.length) return floorY; _o.set(pos.x,pos.y+1.2,pos.z); downRay.set(_o,DOWN); const h=downRay.intersectObjects(world.walkables,false); return h.length?h[0].point.y:floorY; }

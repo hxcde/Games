@@ -59,6 +59,18 @@
   #useBtn { position: absolute; right: 26px; bottom: calc(52px + env(safe-area-inset-bottom)); width: 84px; height: 84px; border-radius: 50%; pointer-events: auto; display: none;
     background: rgba(255,150,70,.25); border: 2px solid rgba(255,190,120,.6); color: #ffe6c2; font-weight: 800; font-size: 15px; }
   body.touch #useBtn.show { display: block; }
+
+  #gear { position: fixed; left: 10px; top: calc(8px + env(safe-area-inset-top)); z-index: 30; width: 34px; height: 34px; border-radius: 9px;
+    background: rgba(15,10,6,.55); border: 1px solid rgba(255,200,140,.35); color: #ffe6c2; font-size: 17px; cursor: pointer; }
+  #settings { position: fixed; left: 10px; top: calc(50px + env(safe-area-inset-top)); z-index: 30; width: 250px; padding: 12px 14px;
+    background: rgba(15,10,6,.85); border: 1px solid rgba(255,190,120,.3); border-radius: 12px; backdrop-filter: blur(8px); display: none; }
+  #settings.show { display: block; }
+  #settings .stitle { font-size: 12px; font-weight: 700; letter-spacing: .5px; color: #ffb066; margin-bottom: 8px; text-transform: uppercase; }
+  #settings .srow { display: flex; flex-wrap: wrap; gap: 6px; }
+  #settings .srow button { flex: 1 1 auto; padding: 7px 8px; border-radius: 8px; font-size: 12px; cursor: pointer;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15); color: #f0e6d8; }
+  #settings .srow button.active { background: linear-gradient(135deg, rgba(255,140,60,.55), rgba(200,90,255,.4)); border-color: rgba(255,210,160,.6); }
+  #settings .shint { font-size: 10.5px; opacity: .6; margin-top: 8px; line-height: 1.4; }
 </style>
 </head>
 <body>
@@ -70,6 +82,18 @@
   <div id="build"></div>
 </div>
 <div id="dialogue"><div class="who"></div><div class="line"></div><div class="hint">[E] / Tippen zum Schließen</div></div>
+<button id="gear" title="Grafik (G)">⚙</button>
+<div id="settings">
+  <div class="stitle">Upscaling (Auflösung)</div>
+  <div class="srow" id="upscale">
+    <button data-s="1">Off</button>
+    <button data-s="0.77">Quality</button>
+    <button data-s="0.67">Balanced</button>
+    <button data-s="0.5">Performance</button>
+    <button data-s="0.4">Ultra</button>
+  </div>
+  <div class="shint">WebGL-Auflösungsskalierung (DLSS-Äquivalent): rendert intern niedriger und skaliert hoch. Niedriger = mehr FPS. Taste G.</div>
+</div>
 <div id="touch"><div id="stick"><div id="nub"></div></div><button id="useBtn">USE</button></div>
 <div id="overlay">
   <div class="logo">SUNSET BLOCK</div>
