@@ -116,7 +116,7 @@ export function buildCity(scene, A, ctx) {
     for (const [w,d,px,pz] of [[x1-x0-2,3,cx,cz],[3,z1-z0-2,cx,cz]]){ const p=new THREE.Mesh(new THREE.BoxGeometry(w,0.04,d),matPave); planeUVbox(p.geometry); p.position.set(px,0.3,pz); p.receiveShadow=true; scene.add(p); }
     function planeUVbox(geo){ scaleUV(geo,4,1,4,2); }
     // real trees (photogrammetry model, instanced clones)
-    for (let i=0;i<8;i++){ const tx=rnd(x0+2.5,x1-2.5),tz=rnd(z0+2.5,z1-2.5); if (Math.abs(tx-cx)<2.8&&Math.abs(tz-cz)<2.8) continue; placeTree(tx,0.24,tz); }
+    for (let i=0;i<6;i++){ const tx=rnd(x0+2.5,x1-2.5),tz=rnd(z0+2.5,z1-2.5); if (Math.abs(tx-cx)<2.8&&Math.abs(tz-cz)<2.8) continue; placeTree(tx,0.24,tz); }
     // benches + lamps + fountain
     for (let i=0;i<4;i++){ bench(rnd(x0+3,x1-3),rnd(z0+3,z1-3),rnd(0,6)); }
     parkLamp(cx-6,cz-6); parkLamp(cx+6,cz+6); parkLamp(cx+6,cz-6); parkLamp(cx-6,cz+6);

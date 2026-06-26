@@ -16,10 +16,10 @@ const LOW = new URLSearchParams(location.search).has('low');
 
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, LOW ? 1 : 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, LOW ? 1 : 1.75));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.08;          // dusk (still daylight, not night)
+renderer.toneMappingExposure = 1.16;          // dusk (lifted so shadows/interiors read)
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = LOW ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
@@ -108,7 +108,7 @@ function buildWorld(A){
   sun.shadow.mapSize.set(LOW?1024:2048, LOW?1024:2048); sun.shadow.camera.near=1; sun.shadow.camera.far=240;
   const SH=70; Object.assign(sun.shadow.camera,{left:-SH,right:SH,top:SH,bottom:-SH}); sun.shadow.bias=-0.0005; sun.shadow.normalBias=0.05;
   scene.add(sun); scene.add(sun.target);
-  scene.add(new THREE.HemisphereLight(0x5a76a8, 0x2a221a, 0.6));
+  scene.add(new THREE.HemisphereLight(0x6e88b8, 0x3a3026, 0.95));   // stronger fill so shadow sides aren't too dark
 
   buildSkyline();
 
@@ -124,7 +124,7 @@ function buildWorld(A){
   sunC.position.copy(sunDir).multiplyScalar(890); sunC.scale.setScalar(90); scene.add(sunC);
 
   const interactables=[];
-  const ctx={ colliders:[], steam:[], blink:[], walkables:[], lightBudget:{n:0,max:LOW?14:34}, addInteractable:(o,d)=>interactables.push({obj:o,def:d}) };
+  const ctx={ colliders:[], steam:[], blink:[], walkables:[], lightBudget:{n:0,max:LOW?12:24}, addInteractable:(o,d)=>interactables.push({obj:o,def:d}) };
   const city=buildCity(scene,A,ctx);
   const agents=createAgents(scene,A,ctx);
 
@@ -154,7 +154,7 @@ composer.addPass(new RenderPass(scene,camera));
 const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.3,0.6,0.85); composer.addPass(bloom);
 composer.addPass(new OutputPass());
 // cinematic grade: contrast, saturation, vignette, subtle chromatic aberration + film grain
-const GradeShader={ uniforms:{ tDiffuse:{value:null}, uTime:{value:0}, uVig:{value:0.42}, uGrain:{value:0.03}, uCA:{value:0.0012}, uSat:{value:1.12}, uCon:{value:1.06} },
+const GradeShader={ uniforms:{ tDiffuse:{value:null}, uTime:{value:0}, uVig:{value:0.16}, uGrain:{value:0.02}, uCA:{value:0.001}, uSat:{value:1.05}, uCon:{value:1.0} },
   vertexShader:'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
   fragmentShader:`uniform sampler2D tDiffuse; uniform float uTime,uVig,uGrain,uCA,uSat,uCon; varying vec2 vUv;
     float rand(vec2 c){ return fract(sin(dot(c,vec2(12.9898,78.233)))*43758.5453); }
