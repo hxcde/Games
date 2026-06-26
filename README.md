@@ -1,14 +1,14 @@
-# NEON DRIFT — Cyberpunk Walk
+# BLUE HOUR — City Walk
 
-Eine kleine Open-World-Demo: First-Person durch eine nächtliche Cyberpunk-Stadt
-laufen. Neon-beleuchtete Hochhäuser, nasse spiegelnde Straßen, holografische
-Werbetafeln, Regen und Nebel. Gebaut mit [three.js](https://threejs.org) (WebGL),
-läuft komplett im Browser.
+Eine kleine Open-World-Demo: First-Person durch eine Stadt zur **blauen Stunde**
+laufen. Realistische Beton- und Glas-Hochhäuser mit beleuchteten Fenstern, echte
+Straßen mit Fahrbahnmarkierungen und Zebrastreifen, Autos mit Scheinwerfern, nasser
+spiegelnder Asphalt, tiefe warme Sonne mit langen Schatten und atmosphärischer
+Dunst. Gebaut mit [three.js](https://threejs.org) (WebGL), läuft im Browser.
 
-> Stilrichtung: „neon-noir", realistisch *wirkende* Beleuchtung (PBR-Materialien,
-> Reflexionen, Bloom, HDR-Tonemapping). Echtes AAA-Fotorealismus-Niveau ist im
-> Browser nicht in einer einzelnen Datei möglich — das hier ist der atmosphärische
-> Kompromiss.
+> Stilrichtung: realistisch (AAA-artig), aber technisch abgespeckt fürs
+> Browser-Budget — PBR-Materialien, Sonnenlicht mit weichen Schatten,
+> Umgebungs-Reflexionen, dezenter Bloom, HDR-Tonemapping.
 
 ## Starten
 
@@ -49,5 +49,6 @@ js/game.js      Spiel: Stadtgenerierung, Beleuchtung, Steuerung, Render-Loop
 libs/           Vendorte three.js + Addons (kein CDN nötig, läuft offline)
 ```
 
-Die Stadt wird prozedural erzeugt (Gebäude, Fenster, Neon-Schilder, Laternen),
-ist also bei jedem Laden etwas anders.
+Die Stadt wird prozedural erzeugt (Gebäude mit Setbacks & Dachaufbauten,
+Fenster, Erdgeschoss-Shops, Straßenlaternen, fahrende Autos), ist also bei
+jedem Laden etwas anders.

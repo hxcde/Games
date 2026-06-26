@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#05060f">
+<meta name="theme-color" content="#1c3358">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>NEON DRIFT — Cyberpunk Walk</title>
+<title>BLUE HOUR — City Walk</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; overflow: hidden; background: #05060f; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #eaf2ff; }
@@ -17,7 +17,7 @@
   #crosshair {
     position: absolute; left: 50%; top: 50%; width: 6px; height: 6px;
     margin: -3px 0 0 -3px; border-radius: 50%;
-    background: rgba(120,230,255,0.9); box-shadow: 0 0 8px rgba(120,230,255,0.9);
+    background: rgba(255,255,255,0.85); box-shadow: 0 0 6px rgba(0,0,0,0.6);
     opacity: 0; transition: opacity .3s;
   }
   #hud.playing #crosshair { opacity: 1; }
@@ -36,16 +36,16 @@
     position: fixed; inset: 0; z-index: 20;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 18px; text-align: center; padding: 24px;
-    background: radial-gradient(circle at 50% 35%, rgba(40,12,60,.55), rgba(5,6,15,.86));
+    background: radial-gradient(circle at 70% 75%, rgba(214,138,90,.35), rgba(16,32,63,.9));
     backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
     transition: opacity .4s;
   }
   #overlay.hidden { opacity: 0; pointer-events: none; }
   .logo {
     font-size: 40px; font-weight: 900; letter-spacing: 4px;
-    background: linear-gradient(90deg,#5ef0ff,#b06bff 50%,#ff5da2);
+    background: linear-gradient(90deg,#ffd2a0,#dfe7ff 60%,#9fb6e0);
     -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: 0 0 40px rgba(150,90,255,.4);
+    text-shadow: 0 0 40px rgba(255,200,150,.25);
   }
   .sub { font-size: 14px; opacity: .7; max-width: 360px; line-height: 1.5; }
   .keys { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
@@ -85,8 +85,8 @@
 </div>
 <div id="touch"><div id="stick"><div id="nub"></div></div></div>
 <div id="overlay">
-  <div class="logo">NEON DRIFT</div>
-  <div class="sub">Eine kleine Cyberpunk-Welt zum Umherlaufen. Verlauf dich in den nassen Neon-Gassen.</div>
+  <div class="logo">BLUE HOUR</div>
+  <div class="sub">Ein kleiner Stadtspaziergang zur blauen Stunde. Tiefe Sonne, lange Schatten, nasser Asphalt.</div>
   <div class="keys">
     <span class="key">WASD / Pfeile — Laufen</span>
     <span class="key">Maus — Umsehen</span>
