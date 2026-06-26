@@ -1,8 +1,18 @@
 # SUNSET BLOCK — Cyberpunk Island (Vertical Slice)
 
-Eine spielbare, dichte Cyberpunk-**Inselstadt** der nahen Zukunft zur **Dämmerung**
+Eine dichte Cyberpunk-**Inselstadt** der nahen Zukunft zur **Dämmerung**
 (Golden Hour, noch nicht Nacht). Gebaut mit [three.js](https://threejs.org) (WebGL),
 läuft im Browser.
+
+> **Status: Prototyp / visuelle Referenz.** Die finale technische Basis wird
+> **Unreal Engine 5**. Migrationsplan, Design-Referenz (mit allen Maßen/Licht-
+> werten) und Asset-Inventar liegen unter **`docs/`**, das UE5-Projektgerüst
+> unter **`unreal/`**:
+> - [`docs/UE5_MIGRATION.md`](docs/UE5_MIGRATION.md) — Entscheidung, 10-Schritte-Plan, Struktur, Technik, Performance/DLSS-TSR
+> - [`docs/DESIGN_REFERENCE.md`](docs/DESIGN_REFERENCE.md) — exakte Layout-/Licht-/Shop-/Ebenen-Werte des Prototyps
+> - [`docs/ASSET_INVENTORY.md`](docs/ASSET_INVENTORY.md) — was übernommen / neu gebaut wird
+>
+> Der folgende Abschnitt beschreibt den **WebGL-Prototyp** (lokal spielbar).
 
 ## Look & Atmosphäre
 - **Dämmerung / Golden Hour**: tiefe warme Sonne über dem Meer, lange Schatten,
