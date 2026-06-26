@@ -53,12 +53,23 @@ Frei bewegen; Fadenkreuz auf ein Objekt → `E` / **USE**:
 
 `?low=1` an die URL hängt = Performance-Modus (kleinere Schatten, kein MSAA) fürs Handy.
 
-## Starten (lokal)
-ES-Module laden nicht per `file://` — lokalen Server nutzen:
+## Lokal spielen (mit Auto-Update) — empfohlen
+Einmalig das Repo klonen (nicht als ZIP), dann starten:
 ```bash
-./start.sh        # oder:  python3 -m http.server 8000
+git clone <repo-url>
+cd Games
+./play.sh           # macOS/Linux
+# Windows:  play.bat doppelklicken (oder in der Eingabeaufforderung ausführen)
 ```
-→ `http://localhost:8000` → **„Betreten"**.
+Der Launcher (`launcher.py`):
+1. holt per `git pull` die **neuesten Dateien von GitHub**,
+2. startet einen lokalen Webserver (ES-Module brauchen `http://`),
+3. öffnet den Browser auf `http://localhost:8000/index.html`.
+
+Optionen: `--no-update` (ohne Update), `--port 9000` (fester Port).
+Voraussetzungen: **Python 3** und **git** im PATH.
+
+Ganz ohne Launcher geht auch: `python3 -m http.server 8000` → `http://localhost:8000`.
 
 ## Veröffentlichen mit Cloudflare Pages
 Statische Seite, **kein Build-Step**. Zwei Wege:
