@@ -49,12 +49,32 @@ Frei bewegen; Fadenkreuz auf ein Objekt → `E` / **USE**:
 
 `?low=1` an die URL hängt = Performance-Modus (kleinere Schatten, kein MSAA) fürs Handy.
 
-## Starten
+## Starten (lokal)
 ES-Module laden nicht per `file://` — lokalen Server nutzen:
 ```bash
 ./start.sh        # oder:  python3 -m http.server 8000
 ```
 → `http://localhost:8000` → **„Betreten"**.
+
+## Veröffentlichen mit Cloudflare Pages
+Statische Seite, **kein Build-Step**. Zwei Wege:
+
+**A) Dashboard (Git-Integration, empfohlen — Auto-Deploy bei jedem Push)**
+1. Cloudflare Dashboard → *Workers & Pages* → *Create* → *Pages* → *Connect to Git*.
+2. Repo `hxcde/games` wählen, Branch `claude/mobile-block-blast-game-dxj04r`
+   (oder vorher in `main` mergen).
+3. Build-Einstellungen: **Framework preset: None**, **Build command: leer**,
+   **Build output directory: `/`** (Repo-Wurzel). Speichern & deployen.
+4. Ergebnis liegt unter `https://<projekt>.pages.dev`.
+
+**B) Wrangler CLI (Direkt-Upload)**
+```bash
+npx wrangler@latest pages deploy .      # fragt einmalig Login/Token ab
+```
+(`wrangler.toml` mit `pages_build_output_dir = "."` liegt bei.)
+
+Caching der schweren Assets steuert `_headers`. Grenzen von Pages sind eingehalten
+(größte Datei ~6,5 MB ≪ 25 MiB, 74 Dateien ≪ 20 000).
 
 ## Projektstruktur
 ```

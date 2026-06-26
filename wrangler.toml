@@ -1,0 +1,5 @@
+# Cloudflare Pages — static site, no build step.
+# Deploy from this folder with:  npx wrangler@latest pages deploy .
+name = "sunset-block"
+compatibility_date = "2026-06-26"
+pages_build_output_dir = "."
