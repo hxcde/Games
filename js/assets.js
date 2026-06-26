@@ -1,46 +1,39 @@
 import * as THREE from 'three';
-import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-// Loads HDRI environment, PBR textures and the character model with progress.
+// real photographic building facades (windows/floors baked in; some have emission)
+const FACADE_SLUGS = ['Facade001','Facade006','Facade009','Facade012','Facade018A','Facade019A'];
+const PLAIN_SLUGS  = ['concrete_wall_008','concrete_floor_worn_001'];
+const GROUND_SLUGS = ['asphalt_02','pavement_02','aerial_grass_rock'];
+const VEH_SLUGS    = ['rusty_metal_03','metal_plate_02'];
+
 export async function loadAll(renderer, onProgress) {
-  const steps = [];
-  const tloader = new THREE.TextureLoader();
-  const loadTex = (url, { srgb = false, repeat = 1 } = {}) => new Promise((res, rej) => {
-    tloader.load(url, t => {
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.repeat.set(repeat, repeat);
-      t.anisotropy = 8;
-      if (srgb) t.colorSpace = THREE.SRGBColorSpace;
-      res(t);
-    }, undefined, rej);
-  });
+  const maxAniso = renderer.capabilities.getMaxAnisotropy();
+  const tl = new THREE.TextureLoader();
+  const load = (url, srgb) => new Promise((res, rej) => tl.load(url, t => {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = maxAniso;
+    t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; res(t);
+  }, undefined, rej));
+  const opt = (url, srgb) => load(url, srgb).catch(() => null);   // optional map
+  const set = async (slug, withEmis) => {
+    const o = { map: await load(`assets/textures/${slug}/diff.jpg`, true),
+      normalMap: await load(`assets/textures/${slug}/nor.jpg`, false),
+      roughnessMap: await load(`assets/textures/${slug}/rough.jpg`, false) };
+    if (withEmis) { const e = await opt(`assets/textures/${slug}/emis.jpg`, true); if (e) o.emissiveMap = e; }
+    return o;
+  };
 
-  const texSet = async (slug) => ({
-    map: await loadTex(`assets/textures/${slug}/diff.jpg`, { srgb: true }),
-    normalMap: await loadTex(`assets/textures/${slug}/nor.jpg`),
-    roughnessMap: await loadTex(`assets/textures/${slug}/rough.jpg`),
-  });
+  const all = [...FACADE_SLUGS.map(s=>[s,true]), ...PLAIN_SLUGS.map(s=>[s,false]), ...GROUND_SLUGS.map(s=>[s,false]), ...VEH_SLUGS.map(s=>[s,false])];
+  const total = all.length + 2;
+  let done = 0; const tick = l => { done++; onProgress && onProgress(done/total, l); };
 
-  let done = 0; const total = 7;
-  const tick = (label) => { done++; onProgress && onProgress(done/total, label); };
-
-  // environment (HDRI) -> PMREM for IBL + background
-  const hdr = await new Promise((res, rej) => new RGBELoader().load('assets/hdri/venice_sunset_1k.hdr', res, undefined, rej));
-  hdr.mapping = THREE.EquirectangularReflectionMapping;
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  const envMap = pmrem.fromEquirectangular(hdr).texture;
-  tick('Himmel');
-
-  const asphalt = await texSet('asphalt_02');       tick('Asphalt');
-  const concrete = await texSet('concrete_wall_008'); tick('Beton');
-  const dirty = await texSet('dirty_concrete');     tick('Wände');
-  const brick = await texSet('brick_wall_006');     tick('Backstein');
-  const waterNormals = await loadTex('assets/textures/waternormals.jpg');
-  waterNormals.colorSpace = THREE.NoColorSpace; tick('Wasser');
+  const tex = {};
+  for (const [s, e] of all) { tex[s] = await set(s, e); tick(s.replace(/_/g,' ')); }
+  tex.waterNormals = await load('assets/textures/waternormals.jpg', false); tex.waterNormals.repeat.set(80,80); tick('Wasser');
 
   const gltf = await new Promise((res, rej) => new GLTFLoader().load('assets/models/Soldier.glb', res, undefined, rej));
+  const box = new THREE.Box3().setFromObject(gltf.scene); const footOffset = -box.min.y;
   tick('Figuren');
 
-  return { envMap, hdr, asphalt, concrete, dirty, brick, waterNormals, soldier: gltf };
+  return { tex, facades: FACADE_SLUGS, soldier: gltf, footOffset, maxAniso };
 }

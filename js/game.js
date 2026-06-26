@@ -7,249 +7,191 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 import { loadAll } from './assets.js';
 import { buildCity } from './city.js';
 import { createAgents } from './agents.js';
-import { SUN_DIR, ISLAND_X, ISLAND_Z, WATER_Y } from './config.js';
+import { SUN_DIR, ISLAND, WATER_Y } from './config.js';
 
-const BUILD = '2026.06.26.cyber.1';
+const BUILD = '2026.06.26.island.1';
 document.getElementById('build').textContent = 'Build ' + BUILD;
+const LOW = new URLSearchParams(location.search).has('low');
 
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, LOW ? 1 : 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.08;          // dusk (still daylight, not night)
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = LOW ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 2000);
-camera.position.set(0, 1.7, 46);
+const camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 2200);
+camera.position.set(0, 1.7, 34);
 
-// soft round sprite for dust / steam
-function softCircle() {
-  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
-  const rg = g.createRadialGradient(32,32,0,32,32,32); rg.addColorStop(0,'rgba(255,255,255,1)'); rg.addColorStop(1,'rgba(255,255,255,0)');
-  g.fillStyle = rg; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(c);
-}
+function softCircle(){ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); const r=g.createRadialGradient(32,32,0,32,32,32); r.addColorStop(0,'rgba(255,255,255,1)'); r.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=r; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(c); }
 const soft = softCircle();
 
-// ---------------------------------------------------------------------------
-const overlay = document.getElementById('overlay');
-const hud = document.getElementById('hud');
-const playBtn = document.getElementById('play');
-const bar = document.querySelector('#bar > i');
-const loadtxt = document.getElementById('loadtxt');
+// dusk sky (warm horizon to blue zenith) for background + IBL — not night yet
+function makeSky(){ const w=1024,h=512,c=document.createElement('canvas'); c.width=w;c.height=h; const g=c.getContext('2d');
+  const grad=g.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0,'#1b2c54'); grad.addColorStop(0.42,'#28406e'); grad.addColorStop(0.60,'#3f527e');
+  grad.addColorStop(0.72,'#7a6a72'); grad.addColorStop(0.80,'#c88a52'); grad.addColorStop(0.87,'#e0a35e'); grad.addColorStop(0.93,'#7a4a32'); grad.addColorStop(1,'#2a2230');
+  g.fillStyle=grad; g.fillRect(0,0,w,h);
+  const sg=g.createRadialGradient(w*0.5,h*0.85,0,w*0.5,h*0.85,420); sg.addColorStop(0,'rgba(255,200,130,0.75)'); sg.addColorStop(0.5,'rgba(235,150,90,0.3)'); sg.addColorStop(1,'rgba(0,0,0,0)');
+  g.fillStyle=sg; g.fillRect(0,0,w,h);
+  g.fillStyle='#dfe7ff'; for(let i=0;i<70;i++){ g.globalAlpha=Math.random()*0.4+0.1; g.fillRect(Math.random()*w,Math.random()*h*0.3,1.1,1.1); } g.globalAlpha=1;
+  const t=new THREE.CanvasTexture(c); t.mapping=THREE.EquirectangularReflectionMapping; t.colorSpace=THREE.SRGBColorSpace; return t; }
+
+// realistic distant megacity skyline (glass/concrete towers, lit windows, haze)
+function skylineFacade(kind){
+  const w=256,h=512,c=document.createElement('canvas'); c.width=w;c.height=h;
+  const base=c.getContext('2d');
+  const em=document.createElement('canvas'); em.width=w;em.height=h; const ge=em.getContext('2d');
+  ge.fillStyle='#000'; ge.fillRect(0,0,w,h);
+  // glass/concrete base with a subtle vertical gradient
+  const office = kind%2===0;
+  const g1=base.createLinearGradient(0,0,0,h);
+  if (office){ g1.addColorStop(0,'#26303f'); g1.addColorStop(1,'#39465a'); } else { g1.addColorStop(0,'#332f33'); g1.addColorStop(1,'#46423f'); }
+  base.fillStyle=g1; base.fillRect(0,0,w,h);
+  const cols=office?10:8, rows=24, mx=office?3:5, my=4;
+  const cw=(w-mx*(cols+1))/cols, ch=(h-my*(rows+1))/rows;
+  const litFrac=0.22+Math.random()*0.18;
+  for(let r=0;r<rows;r++) for(let cc=0;cc<cols;cc++){ const x=mx+cc*(cw+mx), y=my+r*(ch+my);
+    const lit=Math.random()<litFrac; const warm=Math.random()<0.65;
+    const glass = office ? (lit?(warm?'#ffe0ad':'#cfe0ff'):'#1d2735') : (lit?(warm?'#ffd49a':'#dfe7ff'):'#211d22');
+    base.fillStyle=glass; base.fillRect(x,y,cw,ch);
+    if(lit){ ge.fillStyle=warm?'#ffcaa0':'#bcd2ff'; ge.fillRect(x,y,cw,ch); }
+  }
+  // mullion grid
+  base.strokeStyle='rgba(0,0,0,0.45)'; base.lineWidth=1;
+  for(let r=0;r<=rows;r++){ base.beginPath(); base.moveTo(0,my/2+r*(ch+my)); base.lineTo(w,my/2+r*(ch+my)); base.stroke(); }
+  const mk=cv=>{ const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; t.wrapS=t.wrapT=THREE.RepeatWrapping; return t; };
+  return new THREE.MeshStandardMaterial({ map:mk(c), emissiveMap:mk(em), emissive:0xffffff, emissiveIntensity:1.15, color:0xffffff, roughness:office?0.35:0.7, metalness:office?0.25:0.05, envMapIntensity:0.7 });
+}
+function buildSkyline(){
+  const mats=[skylineFacade(0),skylineFacade(1),skylineFacade(2),skylineFacade(3)];
+  const roofMat=new THREE.MeshStandardMaterial({color:0x161a22,roughness:0.9});
+  const grp=new THREE.Group();
+  const scaleUV=(geo,w,h,d,tx,ty)=>{ const uv=geo.attributes.uv; const s=(f,ru,rv)=>{for(let k=0;k<4;k++){const i=f*4+k;uv.setXY(i,uv.getX(i)*ru,uv.getY(i)*rv);}}; s(0,d/tx,h/ty);s(1,d/tx,h/ty);s(2,w/tx,d/tx);s(3,w/tx,d/tx);s(4,w/tx,h/ty);s(5,w/tx,h/ty); uv.needsUpdate=true; };
+  function tower(x,z,bw,bd,bh){ const m=mats[(Math.random()*mats.length)|0];
+    const g=new THREE.BoxGeometry(bw,bh,bd); scaleUV(g,bw,bh,bd,7,16);
+    const b=new THREE.Mesh(g,[m,m,roofMat,roofMat,m,m]); b.position.set(x,WATER_Y+bh/2,z); grp.add(b);
+    if(Math.random()<0.5){ const uw=bw*0.62,ud=bd*0.62,uh=bh*(0.25+Math.random()*0.3); const g2=new THREE.BoxGeometry(uw,uh,ud); scaleUV(g2,uw,uh,ud,7,16);
+      const u=new THREE.Mesh(g2,[m,m,roofMat,roofMat,m,m]); u.position.set(x,WATER_Y+bh+uh/2,z); grp.add(u);
+      if(Math.random()<0.6){ const ant=new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.6,bh*0.15,6),roofMat); ant.position.set(x,WATER_Y+bh+uh+bh*0.07,z); grp.add(ant); } }
+  }
+  for (const [rad,count] of [[170,40],[250,48],[350,52],[470,48],[600,40]]){
+    for (let i=0;i<count;i++){ const a=(i/count)*Math.PI*2 + (Math.random()-0.5)*0.12; const r=rad+Math.random()*55;
+      tower(Math.cos(a)*r, Math.sin(a)*r, 24+Math.random()*46, 24+Math.random()*46, 90+Math.random()*250+rad*0.18); } }
+  scene.add(grp);
+}
+
+const overlay=document.getElementById('overlay'), hud=document.getElementById('hud'), playBtn=document.getElementById('play');
+const bar=document.querySelector('#bar > i'), loadtxt=document.getElementById('loadtxt');
 const isTouch = matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window);
+let world=null;
 
-let world = null;
+loadAll(renderer, (p,label)=>{ bar.style.width=Math.round(p*100)+'%'; loadtxt.textContent='Lade: '+label; })
+  .then(A=>{ world=buildWorld(A); loadtxt.textContent='Bereit.'; playBtn.disabled=false; })
+  .catch(err=>{ loadtxt.textContent='Fehler: '+err.message; console.error(err); });
 
-loadAll(renderer, (p, label) => { bar.style.width = Math.round(p*100)+'%'; loadtxt.textContent = 'Lade: ' + label; })
-  .then(A => { world = buildWorld(A); loadtxt.textContent = 'Bereit.'; playBtn.disabled = false; })
-  .catch(err => { loadtxt.textContent = 'Fehler beim Laden: ' + err.message; console.error(err); });
+function buildWorld(A){
+  const sky=makeSky(); scene.background=sky;
+  const pmrem=new THREE.PMREMGenerator(renderer); scene.environment=pmrem.fromEquirectangular(sky).texture;
+  scene.fog=new THREE.Fog(0x5a5f80, 60, 820);   // dusk haze + aerial perspective on the skyline
 
-function buildWorld(A) {
-  // sky + image-based lighting from the sunset HDRI
-  scene.background = A.hdr;
-  scene.environment = A.envMap;
-  scene.fog = new THREE.FogExp2(0x6a5236, 0.011);   // warm dusty haze
-
-  // key light: low warm sun
-  const sunDir = new THREE.Vector3(SUN_DIR.x, SUN_DIR.y, SUN_DIR.z).normalize();
-  const sun = new THREE.DirectionalLight(0xffb066, 3.1);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.near = 1; sun.shadow.camera.far = 220;
-  const SH = 60; Object.assign(sun.shadow.camera, { left:-SH, right:SH, top:SH, bottom:-SH });
-  sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.04;
+  const sunDir=new THREE.Vector3(SUN_DIR.x,SUN_DIR.y,SUN_DIR.z).normalize();
+  const sun=new THREE.DirectionalLight(0xffb163, 3.7); sun.castShadow=true;
+  sun.shadow.mapSize.set(LOW?1024:2048, LOW?1024:2048); sun.shadow.camera.near=1; sun.shadow.camera.far=240;
+  const SH=70; Object.assign(sun.shadow.camera,{left:-SH,right:SH,top:SH,bottom:-SH}); sun.shadow.bias=-0.0005; sun.shadow.normalBias=0.05;
   scene.add(sun); scene.add(sun.target);
+  scene.add(new THREE.HemisphereLight(0x5a76a8, 0x2a221a, 0.6));
 
-  scene.add(new THREE.HemisphereLight(0x9fb4e0, 0x2a2018, 0.35));
-  const bounce = new THREE.DirectionalLight(0x6a78a0, 0.25); bounce.position.set(-sunDir.x, 0.5, -sunDir.z); scene.add(bounce);
+  buildSkyline();
 
-  // ocean around the island (reflects the sunset env; no street wetness)
-  const waterN = A.waterNormals; waterN.repeat.set(60, 60);
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000),
-    new THREE.MeshStandardMaterial({ color: 0x10202e, metalness: 0.92, roughness: 0.14, normalMap: waterN, normalScale: new THREE.Vector2(0.5,0.5), envMapIntensity: 1.0 }));
-  sea.rotation.x = -Math.PI/2; sea.position.y = WATER_Y; sea.receiveShadow = false; scene.add(sea);
+  // ocean
+  const wn=A.tex.waterNormals; wn.repeat.set(90,90);
+  const sea=new THREE.Mesh(new THREE.PlaneGeometry(5000,5000), new THREE.MeshStandardMaterial({ color:0x0c1622, metalness:0.9, roughness:0.18, normalMap:wn, normalScale:new THREE.Vector2(0.4,0.4), envMapIntensity:0.8 }));
+  sea.rotation.x=-Math.PI/2; sea.position.y=WATER_Y; scene.add(sea);
 
-  // the setting sun as a glowing disc down the street (bloom anchor)
-  const sunSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: soft, color: 0xffdca0, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-  sunSprite.position.copy(sunDir).multiplyScalar(600); sunSprite.scale.setScalar(150); scene.add(sunSprite);
-  const sunCore = new THREE.Sprite(new THREE.SpriteMaterial({ map: soft, color: 0xffe9c4, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
-  sunCore.position.copy(sunDir).multiplyScalar(595); sunCore.scale.setScalar(60); scene.add(sunCore);
+  // setting sun disc over the water
+  const sunS=new THREE.Sprite(new THREE.SpriteMaterial({ map:soft, color:0xffb060, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, fog:false }));
+  sunS.position.copy(sunDir).multiplyScalar(900); sunS.scale.setScalar(220); scene.add(sunS);
+  const sunC=new THREE.Sprite(new THREE.SpriteMaterial({ map:soft, color:0xffe0b0, transparent:true, blending:THREE.AdditiveBlending, depthWrite:false, fog:false }));
+  sunC.position.copy(sunDir).multiplyScalar(890); sunC.scale.setScalar(90); scene.add(sunC);
 
-  // build city + agents
-  const interactables = [];
-  const ctx = {
-    colliders: [], steam: [], blink: [],
-    lightBudget: { n: 0 },
-    addInteractable: (mesh, def) => interactables.push({ obj: mesh, def }),
-  };
-  const city = buildCity(scene, A, ctx);
-  const agents = createAgents(scene, A, ctx);
+  const interactables=[];
+  const ctx={ colliders:[], steam:[], blink:[], lightBudget:{n:0,max:LOW?14:34}, addInteractable:(o,d)=>interactables.push({obj:o,def:d}) };
+  const city=buildCity(scene,A,ctx);
+  const agents=createAgents(scene,A,ctx);
 
-  // dust motes near the camera
-  const DUST = 420; const dpos = new Float32Array(DUST*3);
-  for (let i=0;i<DUST;i++){ dpos[i*3]=(Math.random()-0.5)*60; dpos[i*3+1]=Math.random()*16; dpos[i*3+2]=(Math.random()-0.5)*60; }
-  const dustGeo = new THREE.BufferGeometry(); dustGeo.setAttribute('position', new THREE.BufferAttribute(dpos,3));
-  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({ map: soft, color: 0xffcea0, size: 0.13, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true }));
+  // dust motes
+  const DN=460,dp=new Float32Array(DN*3); for(let i=0;i<DN;i++){dp[i*3]=(Math.random()-0.5)*70;dp[i*3+1]=Math.random()*18;dp[i*3+2]=(Math.random()-0.5)*70;}
+  const dg=new THREE.BufferGeometry(); dg.setAttribute('position',new THREE.BufferAttribute(dp,3));
+  const dust=new THREE.Points(dg,new THREE.PointsMaterial({map:soft,color:0xffc890,size:0.12,transparent:true,opacity:0.45,depthWrite:false,blending:THREE.AdditiveBlending}));
   scene.add(dust);
 
-  // steam puffs from vents / manholes / stalls
-  const emitters = ctx.steam;
-  const SP = Math.min(700, emitters.length * 60); const spos = new Float32Array(SP*3); const scol = new Float32Array(SP*3);
-  const sParts = [];
-  for (let i=0;i<SP;i++){ const e = emitters[i % emitters.length]; sParts.push({ e, age: Math.random()*3, life: 2.5+Math.random()*2.5, vx:(Math.random()-0.5)*0.2, vz:(Math.random()-0.5)*0.2 }); }
-  const steamGeo = new THREE.BufferGeometry(); steamGeo.setAttribute('position', new THREE.BufferAttribute(spos,3)); steamGeo.setAttribute('color', new THREE.BufferAttribute(scol,3));
-  const steam = new THREE.Points(steamGeo, new THREE.PointsMaterial({ map: soft, vertexColors: true, size: 1.6, transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.NormalBlending, sizeAttenuation: true }));
+  // steam
+  const em=ctx.steam; const SP=Math.min(700,Math.max(60,em.length*55)); const sp=new Float32Array(SP*3),sc=new Float32Array(SP*3),parts=[];
+  for(let i=0;i<SP;i++){ const e=em[i%em.length]||{x:0,y:0,z:0,rate:0}; parts.push({e,age:Math.random()*3,life:2.5+Math.random()*2.5,vx:(Math.random()-0.5)*0.2,vz:(Math.random()-0.5)*0.2}); }
+  const sg=new THREE.BufferGeometry(); sg.setAttribute('position',new THREE.BufferAttribute(sp,3)); sg.setAttribute('color',new THREE.BufferAttribute(sc,3));
+  const steam=new THREE.Points(sg,new THREE.PointsMaterial({map:soft,vertexColors:true,size:1.7,transparent:true,opacity:0.45,depthWrite:false}));
   scene.add(steam);
-  function updateSteam(dt) {
-    for (let i=0;i<SP;i++){ const p = sParts[i]; p.age += dt; if (p.age > p.life) { p.age = 0; p.e = emitters[(Math.random()*emitters.length)|0]; }
-      const k = p.age/p.life; const y = p.e.y + p.age*0.7;
-      spos[i*3]=p.e.x + p.vx*p.age*3; spos[i*3+1]=y; spos[i*3+2]=p.e.z + p.vz*p.age*3;
-      const a = Math.sin(k*Math.PI) * 0.32 * (p.e.rate||1); scol[i*3]=a*0.9; scol[i*3+1]=a*0.85; scol[i*3+2]=a*0.8;
-    }
-    steamGeo.attributes.position.needsUpdate = true; steamGeo.attributes.color.needsUpdate = true;
-  }
+  function updateSteam(dt){ for(let i=0;i<SP;i++){ const p=parts[i]; p.age+=dt; if(p.age>p.life){p.age=0;p.e=em[(Math.random()*em.length)|0]||p.e;} const k=p.age/p.life;
+    sp[i*3]=p.e.x+p.vx*p.age*3; sp[i*3+1]=p.e.y+p.age*0.7; sp[i*3+2]=p.e.z+p.vz*p.age*3; const a=Math.sin(k*Math.PI)*0.3*(p.e.rate||1); sc[i*3]=a*0.85;sc[i*3+1]=a*0.8;sc[i*3+2]=a*0.78; }
+    sg.attributes.position.needsUpdate=true; sg.attributes.color.needsUpdate=true; }
 
   return { sun, sunDir, city, agents, interactables, dust, updateSteam };
 }
 
-// ---------------------------------------------------------------------------
-// Post-processing
-const rt = new THREE.WebGLRenderTarget(innerWidth, innerHeight, { type: THREE.HalfFloatType, samples: 4 });
-const composer = new EffectComposer(renderer, rt);
-composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.32, 0.6, 0.85);
-composer.addPass(bloom);
+// ---- post processing ------------------------------------------------------
+const rt=new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType, samples:LOW?0:4});
+const composer=new EffectComposer(renderer,rt);
+composer.addPass(new RenderPass(scene,camera));
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.45,0.6,0.8); composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
-// ---------------------------------------------------------------------------
-// Controls, movement, interaction
-const controls = new PointerLockControls(camera, renderer.domElement);
-const keys = {};
-addEventListener('keydown', e => { keys[e.code] = true; if (e.code === 'KeyE') onUse(); });
-addEventListener('keyup', e => { keys[e.code] = false; });
+// ---- controls / movement / interaction ------------------------------------
+const controls=new PointerLockControls(camera,renderer.domElement);
+const keys={}; addEventListener('keydown',e=>{keys[e.code]=true; if(e.code==='KeyE')onUse();}); addEventListener('keyup',e=>{keys[e.code]=false;});
+function startGame(){ overlay.classList.add('hidden'); hud.classList.add('playing'); if(!isTouch)controls.lock(); if(isTouch)document.getElementById('touch').style.display='block'; }
+playBtn.addEventListener('click',()=>{ if(!playBtn.disabled)startGame(); });
+controls.addEventListener('unlock',()=>{ if(!isTouch&&!dialogueOpen){ overlay.classList.remove('hidden'); hud.classList.remove('playing'); } });
 
-function startGame() { overlay.classList.add('hidden'); hud.classList.add('playing'); if (!isTouch) controls.lock(); if (isTouch) document.getElementById('touch').style.display = 'block'; }
-playBtn.addEventListener('click', () => { if (!playBtn.disabled) startGame(); });
-controls.addEventListener('unlock', () => { if (!isTouch && !dialogueOpen) { overlay.classList.remove('hidden'); hud.classList.remove('playing'); } });
+const vel=new THREE.Vector3(),dir=new THREE.Vector3(),PR=0.5;
+function collide(pos){ if(!world)return; for(const b of world.city.colliders){ const m0x=b.minX-PR,m1x=b.maxX+PR,m0z=b.minZ-PR,m1z=b.maxZ+PR;
+  if(pos.x>m0x&&pos.x<m1x&&pos.z>m0z&&pos.z<m1z){ const dl=pos.x-m0x,dr=m1x-pos.x,du=pos.z-m0z,dd=m1z-pos.z,mm=Math.min(dl,dr,du,dd); if(mm===dl)pos.x=m0x;else if(mm===dr)pos.x=m1x;else if(mm===du)pos.z=m0z;else pos.z=m1z; } }
+  pos.x=Math.max(-(ISLAND-1.5),Math.min(ISLAND-1.5,pos.x)); pos.z=Math.max(-(ISLAND-1.5),Math.min(ISLAND-1.5,pos.z)); }
 
-const vel = new THREE.Vector3(), dir = new THREE.Vector3();
-const PR = 0.5;
-function collide(pos) {
-  if (!world) return;
-  for (const b of world.city.colliders) {
-    const minX=b.minX-PR, maxX=b.maxX+PR, minZ=b.minZ-PR, maxZ=b.maxZ+PR;
-    if (pos.x>minX && pos.x<maxX && pos.z>minZ && pos.z<maxZ) {
-      const dxL=pos.x-minX, dxR=maxX-pos.x, dzL=pos.z-minZ, dzR=maxZ-pos.z, m=Math.min(dxL,dxR,dzL,dzR);
-      if (m===dxL) pos.x=minX; else if (m===dxR) pos.x=maxX; else if (m===dzL) pos.z=minZ; else pos.z=maxZ;
-    }
-  }
-  pos.x = Math.max(-(ISLAND_X-1.2), Math.min(ISLAND_X-1.2, pos.x));
-  pos.z = Math.max(-(ISLAND_Z-1.2), Math.min(ISLAND_Z-1.2, pos.z));
-}
+const prompt=document.getElementById('prompt'),dlg=document.getElementById('dialogue'),useBtn=document.getElementById('useBtn');
+let current=null,dialogueOpen=false,dlgLines=[],dlgIdx=0; const fwd=new THREE.Vector3(),to=new THREE.Vector3();
+function pickInteractable(){ if(!world)return null; camera.getWorldDirection(fwd); fwd.y=0; fwd.normalize(); let best=null,bd=1e9;
+  for(const it of world.interactables){ to.copy(it.obj.position).sub(camera.position); to.y=0; const d=to.length(),r=it.def.radius||4.0; if(d>r)continue; to.normalize(); if(to.dot(fwd)<0.5)continue; if(d<bd){bd=d;best=it;} } return best; }
+function onUse(){ if(!hud.classList.contains('playing'))return; if(dialogueOpen){closeDlg();return;} if(current)openDlg(current.def); }
+function openDlg(def){ dialogueOpen=true; dlgLines=def.lines; dlgIdx=0; dlg.querySelector('.who').textContent=def.who||''; dlg.querySelector('.line').textContent=dlgLines[0]; dlg.classList.add('show'); }
+function closeDlg(){ dialogueOpen=false; dlg.classList.remove('show'); }
+if(useBtn)useBtn.addEventListener('touchstart',e=>{e.preventDefault();onUse();},{passive:false});
+addEventListener('click',()=>{ if(dialogueOpen){ dlgIdx++; if(dlgIdx>=dlgLines.length)closeDlg(); else dlg.querySelector('.line').textContent=dlgLines[dlgIdx]; } });
 
-// interaction
-const prompt = document.getElementById('prompt');
-const dlg = document.getElementById('dialogue');
-const useBtn = document.getElementById('useBtn');
-let current = null, dialogueOpen = false;
-const fwd = new THREE.Vector3(), to = new THREE.Vector3();
+let moveX=0,moveY=0,lookId=null,lastLX=0,lastLY=0,stickId=null,stickCx=0,stickCy=0,yaw=0,pitch=0; const tE=new THREE.Euler(0,0,0,'YXZ');
+const stick=document.getElementById('stick'),nub=document.getElementById('nub');
+if(isTouch){ document.body.classList.add('touch');
+  stick.addEventListener('touchstart',e=>{const t=e.changedTouches[0];stickId=t.identifier;const r=stick.getBoundingClientRect();stickCx=r.left+r.width/2;stickCy=r.top+r.height/2;e.preventDefault();},{passive:false});
+  addEventListener('touchmove',e=>{for(const t of e.changedTouches){ if(t.identifier===stickId){let dx=t.clientX-stickCx,dy=t.clientY-stickCy;const mx=46,d=Math.hypot(dx,dy);if(d>mx){dx*=mx/d;dy*=mx/d;}nub.style.transform=`translate(${dx}px,${dy}px)`;moveX=dx/mx;moveY=dy/mx;} else if(t.identifier===lookId){yaw-=(t.clientX-lastLX)*0.004;pitch-=(t.clientY-lastLY)*0.004;lastLX=t.clientX;lastLY=t.clientY;pitch=Math.max(-1.2,Math.min(1.2,pitch));} }},{passive:false});
+  addEventListener('touchstart',e=>{for(const t of e.changedTouches)if(t.identifier!==stickId&&lookId===null&&t.clientX>innerWidth*0.4){lookId=t.identifier;lastLX=t.clientX;lastLY=t.clientY;}},{passive:false});
+  addEventListener('touchend',e=>{for(const t of e.changedTouches){if(t.identifier===stickId){stickId=null;moveX=moveY=0;nub.style.transform='';}if(t.identifier===lookId)lookId=null;}}); }
 
-function pickInteractable() {
-  if (!world) return null;
-  camera.getWorldDirection(fwd); fwd.y = 0; fwd.normalize();
-  let best = null, bestD = 1e9;
-  for (const it of world.interactables) {
-    to.copy(it.obj.position).sub(camera.position); to.y = 0;   // horizontal distance (works for elevated screens)
-    const d = to.length(); const r = it.def.radius || 4.0;
-    if (d > r) continue;
-    to.normalize();
-    if (to.dot(fwd) < 0.5) continue;
-    if (d < bestD) { bestD = d; best = it; }
-  }
-  return best;
-}
-function onUse() {
-  if (!hud.classList.contains('playing')) return;
-  if (dialogueOpen) { closeDialogue(); return; }
-  if (current) openDialogue(current.def);
-}
-let dlgLines = [], dlgIdx = 0;
-function openDialogue(def) {
-  dialogueOpen = true; dlgLines = def.lines; dlgIdx = 0;
-  dlg.querySelector('.who').textContent = def.who || '';
-  dlg.querySelector('.line').textContent = dlgLines[0];
-  dlg.classList.add('show');
-}
-function closeDialogue() { dialogueOpen = false; dlg.classList.remove('show'); }
-if (useBtn) useBtn.addEventListener('touchstart', e => { e.preventDefault(); onUse(); }, { passive:false });
-// advance dialogue on click while open (desktop)
-addEventListener('click', () => { if (dialogueOpen) { dlgIdx++; if (dlgIdx >= dlgLines.length) closeDialogue(); else dlg.querySelector('.line').textContent = dlgLines[dlgIdx]; } });
-
-// mobile joystick + drag look
-let moveX=0, moveY=0, lookId=null, lastLX=0, lastLY=0, stickId=null, stickCx=0, stickCy=0, yaw=0, pitch=0;
-const tEuler = new THREE.Euler(0,0,0,'YXZ');
-const stick = document.getElementById('stick'), nub = document.getElementById('nub');
-if (isTouch) {
-  document.body.classList.add('touch');
-  stick.addEventListener('touchstart', e => { const t=e.changedTouches[0]; stickId=t.identifier; const r=stick.getBoundingClientRect(); stickCx=r.left+r.width/2; stickCy=r.top+r.height/2; e.preventDefault(); }, {passive:false});
-  addEventListener('touchmove', e => { for (const t of e.changedTouches) {
-    if (t.identifier===stickId){ let dx=t.clientX-stickCx, dy=t.clientY-stickCy; const mx=46, d=Math.hypot(dx,dy); if(d>mx){dx*=mx/d;dy*=mx/d;} nub.style.transform=`translate(${dx}px,${dy}px)`; moveX=dx/mx; moveY=dy/mx; }
-    else if (t.identifier===lookId){ yaw-=(t.clientX-lastLX)*0.004; pitch-=(t.clientY-lastLY)*0.004; lastLX=t.clientX; lastLY=t.clientY; pitch=Math.max(-1.2,Math.min(1.2,pitch)); } } }, {passive:false});
-  addEventListener('touchstart', e => { for (const t of e.changedTouches) if (t.identifier!==stickId && lookId===null && t.clientX>innerWidth*0.4) { lookId=t.identifier; lastLX=t.clientX; lastLY=t.clientY; } }, {passive:false});
-  addEventListener('touchend', e => { for (const t of e.changedTouches){ if(t.identifier===stickId){stickId=null;moveX=moveY=0;nub.style.transform='';} if(t.identifier===lookId) lookId=null; } });
-}
-
-// ---------------------------------------------------------------------------
-const clock = new THREE.Clock();
-let bob = 0, fpsFrames = 0, fpsTime = 0;
-const fpsEl = document.getElementById('fps');
-
-function animate() {
-  requestAnimationFrame(animate);
-  const dt = Math.min(clock.getDelta(), 0.05);
-  const t = clock.elapsedTime;
-  const playing = hud.classList.contains('playing');
-
-  if (playing && world && !dialogueOpen) {
-    const sprint = (keys['ShiftLeft']||keys['ShiftRight']) ? 1.9 : 1;
-    const speed = 3.4*sprint;
-    let f=0, s=0;
-    if (keys['KeyW']||keys['ArrowUp']) f+=1; if (keys['KeyS']||keys['ArrowDown']) f-=1;
-    if (keys['KeyD']||keys['ArrowRight']) s+=1; if (keys['KeyA']||keys['ArrowLeft']) s-=1;
-    if (isTouch) { f += -moveY; s += moveX; tEuler.set(pitch, yaw, 0, 'YXZ'); camera.quaternion.setFromEuler(tEuler); }
-    dir.set(0,0,0); const moving = f||s;
-    if (moving) { camera.getWorldDirection(vel); vel.y=0; vel.normalize(); const right=new THREE.Vector3().crossVectors(vel,camera.up).normalize(); dir.addScaledVector(vel,f).addScaledVector(right,s); if (dir.lengthSq()>0) dir.normalize(); }
-    const pos = camera.position; pos.addScaledVector(dir, speed*dt); collide(pos);
-    if (moving) { bob += dt*speed*1.7; pos.y = 1.7 + Math.sin(bob)*0.05; } else pos.y += (1.7-pos.y)*0.1;
-  }
-
-  if (world) {
-    // sun follows player for tight, crisp long shadows
-    world.sun.position.copy(camera.position).addScaledVector(world.sunDir, 90);
-    world.sun.target.position.copy(camera.position); world.sun.target.updateMatrixWorld();
-    world.agents.update(t, dt);
-    world.updateSteam(dt);
-    world.dust.position.set(Math.round(camera.position.x/60)*60, 0, Math.round(camera.position.z/60)*60);
-    world.dust.rotation.y = t*0.01;
-    // animate window/screen flicker subtly
-    // interaction prompt
-    if (playing && !dialogueOpen) {
-      current = pickInteractable();
-      if (current) { prompt.innerHTML = '<span class="key">E</span>' + current.def.prompt; prompt.classList.add('show'); if (useBtn) useBtn.classList.add('show'); }
-      else { prompt.classList.remove('show'); if (useBtn) useBtn.classList.remove('show'); }
-    } else if (!dialogueOpen) { prompt.classList.remove('show'); if (useBtn) useBtn.classList.remove('show'); }
-  }
-
-  composer.render();
-  fpsFrames++; fpsTime += dt;
-  if (fpsTime >= 0.5) { fpsEl.textContent = Math.round(fpsFrames/fpsTime)+' FPS'; fpsFrames=0; fpsTime=0; }
-}
+const clock=new THREE.Clock(); let bob=0,ff=0,ft=0; const fpsEl=document.getElementById('fps');
+function animate(){ requestAnimationFrame(animate); const dt=Math.min(clock.getDelta(),0.05),t=clock.elapsedTime; const playing=hud.classList.contains('playing');
+  if(playing&&world&&!dialogueOpen){ const sp=(keys['ShiftLeft']||keys['ShiftRight'])?1.9:1, speed=3.4*sp; let f=0,s=0;
+    if(keys['KeyW']||keys['ArrowUp'])f+=1; if(keys['KeyS']||keys['ArrowDown'])f-=1; if(keys['KeyD']||keys['ArrowRight'])s+=1; if(keys['KeyA']||keys['ArrowLeft'])s-=1;
+    if(isTouch){f+=-moveY;s+=moveX;tE.set(pitch,yaw,0,'YXZ');camera.quaternion.setFromEuler(tE);}
+    dir.set(0,0,0); const mv=f||s; if(mv){camera.getWorldDirection(vel);vel.y=0;vel.normalize();const rt2=new THREE.Vector3().crossVectors(vel,camera.up).normalize();dir.addScaledVector(vel,f).addScaledVector(rt2,s);if(dir.lengthSq()>0)dir.normalize();}
+    const pos=camera.position; pos.addScaledVector(dir,speed*dt); collide(pos); if(mv){bob+=dt*speed*1.7;pos.y=1.7+Math.sin(bob)*0.05;}else pos.y+=(1.7-pos.y)*0.1; }
+  if(world){ world.sun.position.copy(camera.position).addScaledVector(world.sunDir,100); world.sun.target.position.copy(camera.position); world.sun.target.updateMatrixWorld();
+    world.agents.update(t,dt); world.updateSteam(dt); world.dust.position.set(Math.round(camera.position.x/70)*70,0,Math.round(camera.position.z/70)*70);
+    if(playing&&!dialogueOpen){ current=pickInteractable(); if(current){prompt.innerHTML='<span class="key">E</span>'+current.def.prompt;prompt.classList.add('show');if(useBtn)useBtn.classList.add('show');} else {prompt.classList.remove('show');if(useBtn)useBtn.classList.remove('show');} }
+    else if(!dialogueOpen){prompt.classList.remove('show');if(useBtn)useBtn.classList.remove('show');} }
+  composer.render(); ff++; ft+=dt; if(ft>=0.5){fpsEl.textContent=Math.round(ff/ft)+' FPS';ff=0;ft=0;} }
 animate();
-
-addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); composer.setSize(innerWidth, innerHeight); });
-
-window.__game = { scene, camera, get world(){ return world; } };
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);});
+window.__game={scene,camera, get world(){return world;}};
