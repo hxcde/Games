@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
 // real photographic building facades (windows/floors baked in; some have emission)
 const FACADE_SLUGS = ['Facade001','Facade002','Facade003','Facade006','Facade009','Facade012','Facade014','Facade018A','Facade019A','Facade020A'];
@@ -31,13 +32,13 @@ export async function loadAll(renderer, onProgress) {
   for (const [s, e] of all) { tex[s] = await set(s, e); tick(s.replace(/_/g,' ')); }
   tex.waterNormals = await load('assets/textures/waternormals.jpg', false); tex.waterNormals.repeat.set(80,80); tick('Wasser');
 
-  const gltfL = new GLTFLoader();
+  const gltfL = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const gltf = await new Promise((res, rej) => gltfL.load('assets/models/Soldier.glb', res, undefined, rej));
   const box = new THREE.Box3().setFromObject(gltf.scene); const footOffset = -box.min.y;
   tick('Figuren');
 
   // real photogrammetry tree (CC0, Poly Haven) — used instanced for the park
-  const treeGltf = await new Promise((res, rej) => gltfL.load('assets/models/island_tree_02/island_tree_02_1k.gltf', res, undefined, rej));
+  const treeGltf = await new Promise((res, rej) => gltfL.load('assets/models/island_tree_02.glb', res, undefined, rej));
   const tbox = new THREE.Box3().setFromObject(treeGltf.scene); const treeScale = 6.5 / (tbox.max.y - tbox.min.y);
   treeGltf.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; if (o.material) o.material.envMapIntensity = 0.5; } });
   tick('Bäume');
