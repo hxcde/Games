@@ -3,6 +3,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { loadAll } from './assets.js';
 import { buildCity } from './city.js';
@@ -14,7 +15,7 @@ document.getElementById('build').textContent = 'Build ' + BUILD;
 const LOW = new URLSearchParams(location.search).has('low');
 
 const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, LOW ? 1 : 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -24,7 +25,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = LOW ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 4000);
+const camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.3, 5400);
 camera.position.set(0, 1.7, 34);
 
 function softCircle(){ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); const r=g.createRadialGradient(32,32,0,32,32,32); r.addColorStop(0,'rgba(255,255,255,1)'); r.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=r; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(c); }
@@ -54,7 +55,7 @@ function skylineFacade(kind){
   base.fillStyle=g1; base.fillRect(0,0,w,h);
   const cols=office?10:8, rows=24, mx=office?3:5, my=4;
   const cw=(w-mx*(cols+1))/cols, ch=(h-my*(rows+1))/rows;
-  const litFrac=0.22+Math.random()*0.18;
+  const litFrac=0.05+Math.random()*0.07;   // distant city: only a few windows lit
   for(let r=0;r<rows;r++) for(let cc=0;cc<cols;cc++){ const x=mx+cc*(cw+mx), y=my+r*(ch+my);
     const lit=Math.random()<litFrac; const warm=Math.random()<0.65;
     const glass = office ? (lit?(warm?'#ffe0ad':'#cfe0ff'):'#1d2735') : (lit?(warm?'#ffd49a':'#dfe7ff'):'#211d22');
@@ -65,7 +66,7 @@ function skylineFacade(kind){
   base.strokeStyle='rgba(0,0,0,0.45)'; base.lineWidth=1;
   for(let r=0;r<=rows;r++){ base.beginPath(); base.moveTo(0,my/2+r*(ch+my)); base.lineTo(w,my/2+r*(ch+my)); base.stroke(); }
   const mk=cv=>{ const t=new THREE.CanvasTexture(cv); t.colorSpace=THREE.SRGBColorSpace; t.wrapS=t.wrapT=THREE.RepeatWrapping; return t; };
-  return new THREE.MeshStandardMaterial({ map:mk(c), emissiveMap:mk(em), emissive:0xffffff, emissiveIntensity:1.15, color:0xffffff, roughness:office?0.35:0.7, metalness:office?0.25:0.05, envMapIntensity:0.7 });
+  return new THREE.MeshStandardMaterial({ map:mk(c), emissiveMap:mk(em), emissive:0xffffff, emissiveIntensity:0.6, color:0x9aa3b4, roughness:office?0.4:0.75, metalness:office?0.2:0.05, envMapIntensity:0.5 });
 }
 function buildSkyline(){
   const mats=[skylineFacade(0),skylineFacade(1),skylineFacade(2),skylineFacade(3)];
@@ -82,9 +83,9 @@ function buildSkyline(){
   // distant mainland on ONE side only (a far coastline); open sea everywhere else
   const CENTER = 0;        // +X direction (atan2(z,x)=0)
   const SPREAD = 1.05;     // ~±60° sector
-  for (const [rad,count] of [[950,30],[1250,34],[1600,30],[2000,22]]){
-    for (let i=0;i<count;i++){ const a=CENTER + (Math.random()*2-1)*SPREAD; const r=rad+Math.random()*260;
-      tower(Math.cos(a)*r, Math.sin(a)*r, 50+Math.random()*100, 50+Math.random()*100, 200+Math.random()*420+rad*0.05); } }
+  for (const [rad,count] of [[1350,30],[1750,34],[2250,30],[2850,24],[3500,18]]){
+    for (let i=0;i<count;i++){ const a=CENTER + (Math.random()*2-1)*SPREAD; const r=rad+Math.random()*320;
+      tower(Math.cos(a)*r, Math.sin(a)*r, 60+Math.random()*120, 60+Math.random()*120, 240+Math.random()*480+rad*0.05); } }
   scene.add(grp);
 }
 
@@ -100,7 +101,7 @@ loadAll(renderer, (p,label)=>{ bar.style.width=Math.round(p*100)+'%'; loadtxt.te
 function buildWorld(A){
   const sky=makeSky(); scene.background=sky;
   const pmrem=new THREE.PMREMGenerator(renderer); scene.environment=pmrem.fromEquirectangular(sky).texture;
-  scene.fog=new THREE.Fog(0x5a6080, 140, 3000); // light dusk haze near, far enough to keep the distant coast as a silhouette
+  scene.fog=new THREE.Fog(0x4e5577, 160, 4400); // dusk haze; distant coast reads as a hazy silhouette
 
   const sunDir=new THREE.Vector3(SUN_DIR.x,SUN_DIR.y,SUN_DIR.z).normalize();
   const sun=new THREE.DirectionalLight(0xffb163, 3.7); sun.castShadow=true;
@@ -123,7 +124,7 @@ function buildWorld(A){
   sunC.position.copy(sunDir).multiplyScalar(890); sunC.scale.setScalar(90); scene.add(sunC);
 
   const interactables=[];
-  const ctx={ colliders:[], steam:[], blink:[], lightBudget:{n:0,max:LOW?14:34}, addInteractable:(o,d)=>interactables.push({obj:o,def:d}) };
+  const ctx={ colliders:[], steam:[], blink:[], walkables:[], lightBudget:{n:0,max:LOW?14:34}, addInteractable:(o,d)=>interactables.push({obj:o,def:d}) };
   const city=buildCity(scene,A,ctx);
   const agents=createAgents(scene,A,ctx);
 
@@ -143,15 +144,29 @@ function buildWorld(A){
     sp[i*3]=p.e.x+p.vx*p.age*3; sp[i*3+1]=p.e.y+p.age*0.7; sp[i*3+2]=p.e.z+p.vz*p.age*3; const a=Math.sin(k*Math.PI)*0.3*(p.e.rate||1); sc[i*3]=a*0.85;sc[i*3+1]=a*0.8;sc[i*3+2]=a*0.78; }
     sg.attributes.position.needsUpdate=true; sg.attributes.color.needsUpdate=true; }
 
-  return { sun, sunDir, city, agents, interactables, dust, updateSteam };
+  return { sun, sunDir, city, agents, interactables, dust, updateSteam, walkables: ctx.walkables };
 }
 
 // ---- post processing ------------------------------------------------------
 const rt=new THREE.WebGLRenderTarget(innerWidth,innerHeight,{type:THREE.HalfFloatType, samples:LOW?0:4});
 const composer=new EffectComposer(renderer,rt);
 composer.addPass(new RenderPass(scene,camera));
-const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.45,0.6,0.8); composer.addPass(bloom);
+const bloom=new UnrealBloomPass(new THREE.Vector2(innerWidth,innerHeight),0.3,0.6,0.85); composer.addPass(bloom);
 composer.addPass(new OutputPass());
+// cinematic grade: contrast, saturation, vignette, subtle chromatic aberration + film grain
+const GradeShader={ uniforms:{ tDiffuse:{value:null}, uTime:{value:0}, uVig:{value:0.42}, uGrain:{value:0.03}, uCA:{value:0.0012}, uSat:{value:1.12}, uCon:{value:1.06} },
+  vertexShader:'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+  fragmentShader:`uniform sampler2D tDiffuse; uniform float uTime,uVig,uGrain,uCA,uSat,uCon; varying vec2 vUv;
+    float rand(vec2 c){ return fract(sin(dot(c,vec2(12.9898,78.233)))*43758.5453); }
+    void main(){ vec2 d=vUv-0.5;
+      float r=texture2D(tDiffuse,vUv-d*uCA).r, g=texture2D(tDiffuse,vUv).g, b=texture2D(tDiffuse,vUv+d*uCA).b;
+      vec3 col=vec3(r,g,b);
+      col=(col-0.5)*uCon+0.5;
+      float l=dot(col,vec3(0.2126,0.7152,0.0722)); col=mix(vec3(l),col,uSat);
+      float vig=smoothstep(0.92,0.25,length(d)); col*=mix(1.0,vig,uVig);
+      col+=(rand(vUv*(1.0+fract(uTime)))-0.5)*uGrain;
+      gl_FragColor=vec4(clamp(col,0.0,1.0),1.0); }` };
+const grade=new ShaderPass(GradeShader); composer.addPass(grade);
 
 // ---- controls / movement / interaction ------------------------------------
 const controls=new PointerLockControls(camera,renderer.domElement);
@@ -161,8 +176,15 @@ playBtn.addEventListener('click',()=>{ if(!playBtn.disabled)startGame(); });
 controls.addEventListener('unlock',()=>{ if(!isTouch&&!dialogueOpen){ overlay.classList.remove('hidden'); hud.classList.remove('playing'); } });
 
 const vel=new THREE.Vector3(),dir=new THREE.Vector3(),PR=0.5;
-function collide(pos){ if(!world)return; for(const b of world.city.colliders){ const m0x=b.minX-PR,m1x=b.maxX+PR,m0z=b.minZ-PR,m1z=b.maxZ+PR;
+// vertical traversal: sample ground/stairs/platform height under the player
+const downRay=new THREE.Raycaster(); downRay.far=140; const _o=new THREE.Vector3(), DOWN=new THREE.Vector3(0,-1,0), _right=new THREE.Vector3(); let floorY=0;
+function sampleFloor(pos){ if(!world||!world.walkables.length) return floorY; _o.set(pos.x,pos.y+1.2,pos.z); downRay.set(_o,DOWN); const h=downRay.intersectObjects(world.walkables,false); return h.length?h[0].point.y:floorY; }
+function collide(pos){ if(!world)return; for(const b of world.city.colliders){ if(b.top!==undefined && (pos.y-1.7)>b.top-0.4) continue; const m0x=b.minX-PR,m1x=b.maxX+PR,m0z=b.minZ-PR,m1z=b.maxZ+PR;
   if(pos.x>m0x&&pos.x<m1x&&pos.z>m0z&&pos.z<m1z){ const dl=pos.x-m0x,dr=m1x-pos.x,du=pos.z-m0z,dd=m1z-pos.z,mm=Math.min(dl,dr,du,dd); if(mm===dl)pos.x=m0x;else if(mm===dr)pos.x=m1x;else if(mm===du)pos.z=m0z;else pos.z=m1z; } }
+  // vehicles (circle push-out), only while near street level
+  const ob=world.agents&&world.agents.obstacles;
+  if(ob&&(pos.y-1.7)<2.0){ for(const o of ob){ const dx=pos.x-o.pos.x, dz=pos.z-o.pos.z, rr=o.r+PR, d2=dx*dx+dz*dz;
+    if(d2<rr*rr&&d2>1e-4){ const d=Math.sqrt(d2); pos.x=o.pos.x+dx/d*rr; pos.z=o.pos.z+dz/d*rr; } } }
   pos.x=Math.max(-(ISLAND-1.5),Math.min(ISLAND-1.5,pos.x)); pos.z=Math.max(-(ISLAND-1.5),Math.min(ISLAND-1.5,pos.z)); }
 
 const prompt=document.getElementById('prompt'),dlg=document.getElementById('dialogue'),useBtn=document.getElementById('useBtn');
@@ -188,12 +210,16 @@ function animate(){ requestAnimationFrame(animate); const dt=Math.min(clock.getD
   if(playing&&world&&!dialogueOpen){ const sp=(keys['ShiftLeft']||keys['ShiftRight'])?1.9:1, speed=3.4*sp; let f=0,s=0;
     if(keys['KeyW']||keys['ArrowUp'])f+=1; if(keys['KeyS']||keys['ArrowDown'])f-=1; if(keys['KeyD']||keys['ArrowRight'])s+=1; if(keys['KeyA']||keys['ArrowLeft'])s-=1;
     if(isTouch){f+=-moveY;s+=moveX;tE.set(pitch,yaw,0,'YXZ');camera.quaternion.setFromEuler(tE);}
-    dir.set(0,0,0); const mv=f||s; if(mv){camera.getWorldDirection(vel);vel.y=0;vel.normalize();const rt2=new THREE.Vector3().crossVectors(vel,camera.up).normalize();dir.addScaledVector(vel,f).addScaledVector(rt2,s);if(dir.lengthSq()>0)dir.normalize();}
-    const pos=camera.position; pos.addScaledVector(dir,speed*dt); collide(pos); if(mv){bob+=dt*speed*1.7;pos.y=1.7+Math.sin(bob)*0.05;}else pos.y+=(1.7-pos.y)*0.1; }
+    dir.set(0,0,0); const mv=f||s; if(mv){camera.getWorldDirection(vel);vel.y=0;vel.normalize();_right.crossVectors(vel,camera.up).normalize();dir.addScaledVector(vel,f).addScaledVector(_right,s);if(dir.lengthSq()>0)dir.normalize();}
+    const pos=camera.position; pos.addScaledVector(dir,speed*dt); collide(pos);
+    if(mv) bob+=dt*speed*1.7; const hb=mv?Math.sin(bob)*0.05:0;
+    const fl=sampleFloor(pos); floorY+=(fl-floorY)*Math.min(1,dt*12);
+    pos.y+=((floorY+1.7+hb)-pos.y)*Math.min(1,dt*14); }
   if(world){ world.sun.position.copy(camera.position).addScaledVector(world.sunDir,100); world.sun.target.position.copy(camera.position); world.sun.target.updateMatrixWorld();
     world.agents.update(t,dt); world.updateSteam(dt); world.dust.position.set(Math.round(camera.position.x/70)*70,0,Math.round(camera.position.z/70)*70);
     if(playing&&!dialogueOpen){ current=pickInteractable(); if(current){prompt.innerHTML='<span class="key">E</span>'+current.def.prompt;prompt.classList.add('show');if(useBtn)useBtn.classList.add('show');} else {prompt.classList.remove('show');if(useBtn)useBtn.classList.remove('show');} }
     else if(!dialogueOpen){prompt.classList.remove('show');if(useBtn)useBtn.classList.remove('show');} }
+  grade.uniforms.uTime.value=t;
   composer.render(); ff++; ft+=dt; if(ft>=0.5){fpsEl.textContent=Math.round(ff/ft)+' FPS';ff=0;ft=0;} }
 animate();
 addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);composer.setSize(innerWidth,innerHeight);});

@@ -37,7 +37,7 @@ export function buildCity(scene, A, ctx) {
   // ---- island, sea wall, base asphalt --------------------------------------
   const slabH=6, slab=new THREE.Mesh(new THREE.BoxGeometry(ISLAND*2+6,slabH,ISLAND*2+6), mat('concrete_wall_008',{color:0x4a4842}));
   scaleUV(slab.geometry,ISLAND*2,slabH,ISLAND*2,5); slab.position.y=-slabH/2; slab.receiveShadow=true; scene.add(slab);
-  const road=new THREE.Mesh(new THREE.PlaneGeometry(ISLAND*2,ISLAND*2), matAsphalt); planeUV(road.geometry,ISLAND*2/4,ISLAND*2/4); road.rotation.x=-Math.PI/2; road.position.y=0.01; road.receiveShadow=true; scene.add(road);
+  const road=new THREE.Mesh(new THREE.PlaneGeometry(ISLAND*2,ISLAND*2), matAsphalt); planeUV(road.geometry,ISLAND*2/4,ISLAND*2/4); road.rotation.x=-Math.PI/2; road.position.y=0.01; road.receiveShadow=true; scene.add(road); ctx.walkables.push(road);
   // perimeter railing
   for (const s of [-1,1]) { const rx=new THREE.Mesh(new THREE.BoxGeometry(0.2,1,ISLAND*2),matMetal); rx.position.set(s*(ISLAND-0.5),0.5,0); rx.castShadow=true; scene.add(rx);
     const rz=new THREE.Mesh(new THREE.BoxGeometry(ISLAND*2,1,0.2),matMetal); rz.position.set(0,0.5,s*(ISLAND-0.5)); rz.castShadow=true; scene.add(rz); }
@@ -61,7 +61,7 @@ export function buildCity(scene, A, ctx) {
   // ---- one building (photographic facade, windows baked in) ----------------
   function building(cx,cz,w,d,h){
     const slug=pick(FACADES); const tint=new THREE.Color().setHSL(rnd(0,1)<0.5?0.07:0.6, rnd(0,0.05), rnd(0.72,0.95)); // subtle, keep photo realism
-    const m=mat(slug,{color:tint, roughness:1, emis:1.0});
+    const m=mat(slug,{color:tint, roughness:1, emis:0.5});
     const tile=rnd(7,10); const geo=new THREE.BoxGeometry(w,h,d); scaleUV(geo,w,h,d,tile);
     const b=new THREE.Mesh(geo,[m,m,matRoof,matRoof,m,m]); b.position.set(cx,h/2,cz); b.castShadow=true; b.receiveShadow=true; scene.add(b);
     colliders.push({minX:cx-w/2,maxX:cx+w/2,minZ:cz-d/2,maxZ:cz+d/2});
@@ -88,17 +88,25 @@ export function buildCity(scene, A, ctx) {
     const curb=new THREE.Mesh(new THREE.BoxGeometry(w+0.06,hgt+0.14,d+0.06),matCurb); curb.position.set(cx,(hgt+0.14)/2,cz); curb.receiveShadow=true; scene.add(curb);
     // the actual district surface on top of the apron (covers the block interior)
     const iw=x1-x0,id=z1-z0;
-    const p=new THREE.Mesh(new THREE.BoxGeometry(iw,0.06,id),material); scaleUV(p.geometry,iw,0.06,id,4); p.position.set((x0+x1)/2,hgt+0.03,(z0+z1)/2); p.receiveShadow=true; scene.add(p);
+    const p=new THREE.Mesh(new THREE.BoxGeometry(iw,0.06,id),material); scaleUV(p.geometry,iw,0.06,id,4); p.position.set((x0+x1)/2,hgt+0.03,(z0+z1)/2); p.receiveShadow=true; scene.add(p); ctx.walkables.push(p);
     return {cx:(x0+x1)/2,cz:(z0+z1)/2,w:iw,d:id}; }
 
   // ---- districts -----------------------------------------------------------
+  function placeTree(x,y,z){ if(!A.tree) return; const t=A.tree.clone(); const s=A.treeScale*rnd(0.85,1.3); t.scale.setScalar(s); t.position.set(x, y - A.treeMinY*s, z); t.rotation.y=rnd(0,Math.PI*2); scene.add(t); }
+  function alleyClutter(x,z){ if(Math.random()<0.6) trash(x+rnd(-0.6,0.6),z+rnd(-0.6,0.6)); if(Math.random()<0.6) box(x+rnd(-0.6,0.6),z+rnd(-0.6,0.6),rnd(0.4,0.7)); if(Math.random()<0.4) pipe(x+rnd(-0.5,0.5),0.3,rnd(5,12),z+rnd(-0.5,0.5)); if(Math.random()<0.3) steam.push({x,y:0.25,z,rate:0.25}); }
+  // denser blocks: many smaller buildings separated by narrow walkable alleys
   function districtBuildings(x0,x1,z0,z1){
     pad(x0,x1,z0,z1,matPave);
-    const inset=1.6; x0+=inset;x1-=inset;z0+=inset;z1-=inset; const W=x1-x0,D=z1-z0;
-    const nx=W>26?2:1, nz=D>26?2:1; const gx=W/nx, gz=D/nz;
-    for (let i=0;i<nx;i++) for (let j=0;j<nz;j++){ if (Math.random()<0.08) continue; // occasional gap/courtyard
-      const bx0=x0+i*gx+1, bx1=x0+(i+1)*gx-1, bz0=z0+j*gz+1, bz1=z0+(j+1)*gz-1;
-      building((bx0+bx1)/2,(bz0+bz1)/2, bx1-bx0, bz1-bz0, rnd(16,28)+Math.random()*Math.random()*40); }
+    const inset=1.2; x0+=inset;x1-=inset;z0+=inset;z1-=inset; const W=x1-x0,D=z1-z0;
+    const nx=Math.max(1,Math.round(W/12)), nz=Math.max(1,Math.round(D/12)); const gx=W/nx, gz=D/nz;
+    const a=0.95; // half alley width
+    for (let i=0;i<nx;i++) for (let j=0;j<nz;j++){
+      const bx0=x0+i*gx+a, bx1=x0+(i+1)*gx-a, bz0=z0+j*gz+a, bz1=z0+(j+1)*gz-a;
+      if (bx1-bx0<3.5||bz1-bz0<3.5) continue;
+      if (Math.random()<0.07){ alleyClutter((bx0+bx1)/2,(bz0+bz1)/2); continue; } // occasional courtyard/gap
+      building((bx0+bx1)/2,(bz0+bz1)/2, bx1-bx0, bz1-bz0, rnd(13,22)+Math.random()*Math.random()*48);
+      if (Math.random()<0.5) alleyClutter((bx0+bx1)/2, bz1+a); // clutter in the alley behind
+    }
   }
 
   function districtPark(x0,x1,z0,z1){
@@ -107,12 +115,8 @@ export function buildCity(scene, A, ctx) {
     // crossing paths
     for (const [w,d,px,pz] of [[x1-x0-2,3,cx,cz],[3,z1-z0-2,cx,cz]]){ const p=new THREE.Mesh(new THREE.BoxGeometry(w,0.04,d),matPave); planeUVbox(p.geometry); p.position.set(px,0.3,pz); p.receiveShadow=true; scene.add(p); }
     function planeUVbox(geo){ scaleUV(geo,4,1,4,2); }
-    // trees
-    const treeTrunk=new THREE.MeshStandardMaterial({color:0x3a2c20,roughness:0.9}); const leaf=new THREE.MeshStandardMaterial({color:0x2f4a28,roughness:0.95});
-    for (let i=0;i<16;i++){ const tx=rnd(x0+2,x1-2),tz=rnd(z0+2,z1-2); if (Math.abs(tx-cx)<2.5||Math.abs(tz-cz)<2.5) continue;
-      const g=new THREE.Group(); const tr=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.26,rnd(2.2,3.2),7),treeTrunk); tr.position.y=1.4; g.add(tr);
-      for (let f=0;f<3;f++){ const s=new THREE.Mesh(new THREE.IcosahedronGeometry(rnd(1.1,1.7),1),leaf); s.position.set(rnd(-0.5,0.5),2.6+f*0.7+rnd(0,0.4),rnd(-0.5,0.5)); s.scale.y=0.85; g.add(s); }
-      g.position.set(tx,0.28,tz); g.traverse(o=>{if(o.isMesh)o.castShadow=true;}); scene.add(g); }
+    // real trees (photogrammetry model, instanced clones)
+    for (let i=0;i<8;i++){ const tx=rnd(x0+2.5,x1-2.5),tz=rnd(z0+2.5,z1-2.5); if (Math.abs(tx-cx)<2.8&&Math.abs(tz-cz)<2.8) continue; placeTree(tx,0.24,tz); }
     // benches + lamps + fountain
     for (let i=0;i<4;i++){ bench(rnd(x0+3,x1-3),rnd(z0+3,z1-3),rnd(0,6)); }
     parkLamp(cx-6,cz-6); parkLamp(cx+6,cz+6); parkLamp(cx+6,cz-6); parkLamp(cx-6,cz+6);
@@ -160,6 +164,8 @@ export function buildCity(scene, A, ctx) {
 
   function districtPlaza(x0,x1,z0,z1){
     pad(x0,x1,z0,z1,matPave); const cx=(x0+x1)/2,cz=(z0+z1)/2;
+    podium(x0+3, x0+15, z0+3, z0+15, 3);   // raised terrace level with stairs
+    for(let i=0;i<2;i++) placeTree(rnd(x0+16,x1-3),0.26,rnd(z0+4,z1-4));   // a few real trees
     for (let i=0;i<3;i++) bench(rnd(x0+3,x1-3),rnd(z0+3,z1-3),rnd(0,6));
     // planters
     for (let i=0;i<4;i++){ const p=new THREE.Mesh(new THREE.BoxGeometry(1.4,0.6,1.4),matCurb); p.position.set(rnd(x0+3,x1-3),0.5,rnd(z0+3,z1-3)); p.castShadow=true; scene.add(p);
@@ -176,6 +182,36 @@ export function buildCity(scene, A, ctx) {
     ctx.addInteractable(t,{prompt:'Terminal benutzen',who:'Stadt-Terminal // Insel 7',lines:['WILLKOMMEN AUF INSEL 7.','Park im Osten, Parkhaus im Westen. Folge der Hauptstraße nach Süden zur Hafenkante.']});
   }
 
+  // ---- vertical levels: stairs (with invisible walkable ramp), podium, overpass
+  function stairs(sx,sz,len,fromY,toY,width,axis,sign){
+    const steps=Math.max(4,Math.round((toY-fromY)/0.2));
+    for(let i=0;i<steps;i++){ const h=fromY+(toY-fromY)*((i+1)/steps); const off=sign*len*((i+0.5)/steps);
+      const sw=axis==='z'?width:len/steps+0.06, sd=axis==='z'?len/steps+0.06:width;
+      const st=new THREE.Mesh(new THREE.BoxGeometry(sw,h,sd),matFloor); st.position.set(axis==='z'?sx:sx+off, h/2, axis==='z'?sz+off:sz); st.castShadow=true; st.receiveShadow=true; scene.add(st); }
+    const ramp=new THREE.Mesh(new THREE.BoxGeometry(axis==='z'?width:len,0.16,axis==='z'?len:width), new THREE.MeshBasicMaterial({transparent:true,opacity:0,depthWrite:false}));
+    ramp.position.set(axis==='z'?sx:sx+sign*len/2,(fromY+toY)/2+0.12,axis==='z'?sz+sign*len/2:sz);
+    const ang=Math.atan2(toY-fromY,len); if(axis==='z') ramp.rotation.x=-sign*ang; else ramp.rotation.z=sign*ang;
+    scene.add(ramp); ctx.walkables.push(ramp);
+  }
+  function podium(x0,x1,z0,z1,h){
+    const w=x1-x0,d=z1-z0,cx=(x0+x1)/2,cz=(z0+z1)/2;
+    const base=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat('concrete_wall_008',{color:0x6a665e})); scaleUV(base.geometry,w,h,d,4); base.position.set(cx,h/2,cz); base.castShadow=true; base.receiveShadow=true; scene.add(base);
+    colliders.push({minX:x0,maxX:x1,minZ:z0,maxZ:z1,top:h});
+    const top=new THREE.Mesh(new THREE.BoxGeometry(w,0.1,d),matPave); scaleUV(top.geometry,w,0.1,d,3); top.position.set(cx,h+0.05,cz); top.receiveShadow=true; scene.add(top); ctx.walkables.push(top);
+    for(const s of [-1,1]){ const r=new THREE.Mesh(new THREE.BoxGeometry(w,0.8,0.1),matMetal); r.position.set(cx,h+0.5,cz+s*d/2); scene.add(r); }
+    const r2=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.8,d),matMetal); r2.position.set(x0,h+0.5,cz); scene.add(r2);
+    stairs(cx, z1+4, 4, 0, h, Math.min(6,w*0.6), 'z', -1); // ground at z1+4 up to the z1 edge
+  }
+  function overpass(z,x0,x1,h,width){
+    const len=x1-x0,cx=(x0+x1)/2;
+    const deck=new THREE.Mesh(new THREE.BoxGeometry(len,0.3,width),matFloor); scaleUV(deck.geometry,len,0.3,width,3); deck.position.set(cx,h,z); deck.castShadow=true; deck.receiveShadow=true; scene.add(deck);
+    const top=new THREE.Mesh(new THREE.BoxGeometry(len,0.06,width),matFloor); top.position.set(cx,h+0.18,z); top.receiveShadow=true; scene.add(top); ctx.walkables.push(top);
+    for(const s of [-1,1]){ const rail=new THREE.Mesh(new THREE.BoxGeometry(len,1,0.1),matMetal); rail.position.set(cx,h+0.7,z+s*width/2); scene.add(rail); }
+    for(const ex of [x0,x1]) for(const sz of [-1,1]){ const p=new THREE.Mesh(new THREE.BoxGeometry(0.5,h,0.5),mat('concrete_wall_008',{color:0x5a5650})); p.position.set(ex,h/2,z+sz*(width/2-0.1)); p.castShadow=true; scene.add(p); }
+    stairs(x0-4.5, z, 4.5, 0, h, width-0.6, 'x', +1); // ground at x0-4.5 up to x0
+    stairs(x1+4.5, z, 4.5, 0, h, width-0.6, 'x', -1); // ground at x1+4.5 up to x1
+  }
+
   // ---- lay out the grid ----------------------------------------------------
   const X = blockStrips(), Z = blockStrips();
   const TYPE = { '1,1':'plaza', '2,1':'park', '1,2':'parking' };
@@ -186,17 +222,18 @@ export function buildCity(scene, A, ctx) {
     else if (t==='plaza') districtPlaza(x0,x1,z0,z1);
     else districtBuildings(x0,x1,z0,z1);
   }
+  overpass(-18, -11, 11, 5.2, 4);   // pedestrian bridge across the main street (another level)
 
   // commit windows
   if (winDark.length){ const im=new THREE.InstancedMesh(winGeo,matGlassDark,winDark.length); winDark.forEach((m,i)=>im.setMatrixAt(i,m)); im.instanceMatrix.needsUpdate=true; im.castShadow=false; scene.add(im); }
   if (winLit.length){ const im=new THREE.InstancedMesh(winGeo,matGlassLit,winLit.length); winLit.forEach((m,i)=>im.setMatrixAt(i,m)); im.instanceMatrix.needsUpdate=true; scene.add(im); }
 
   // ---- roads: lane markings, crosswalks, lamps -----------------------------
-  const paintMat=new THREE.MeshStandardMaterial({color:0xb9b3a0,roughness:0.8,emissive:0x141414,emissiveIntensity:0.3});
+  const paintMat=new THREE.MeshStandardMaterial({color:0xb9b3a0,roughness:0.8,emissive:0x141414,emissiveIntensity:0.3,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3});
   function dashLine(isX,c){ for (let p=-ISLAND+4;p<ISLAND-4;p+=4){ const d=new THREE.Mesh(new THREE.PlaneGeometry(0.16,2),paintMat); d.rotation.x=-Math.PI/2; if(isX){d.rotation.z=Math.PI/2; d.position.set(p+1,0.02,c);} else d.position.set(c,0.02,p+1); scene.add(d);} }
   for (const r of ROADS){ dashLine(false,r); dashLine(true,r); }
   // crosswalks at intersections
-  const cwTex=crosswalkTex(); const cwMat=new THREE.MeshStandardMaterial({map:cwTex,transparent:true,roughness:0.8,emissive:0x111111,emissiveIntensity:0.25}); const cwGeo=new THREE.PlaneGeometry(ROAD_HALF*2,ROAD_HALF*2);
+  const cwTex=crosswalkTex(); const cwMat=new THREE.MeshStandardMaterial({map:cwTex,transparent:true,roughness:0.8,emissive:0x111111,emissiveIntensity:0.25,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-3}); const cwGeo=new THREE.PlaneGeometry(ROAD_HALF*2,ROAD_HALF*2);
   for (const rx of ROADS) for (const rz of ROADS){ const m=new THREE.Mesh(cwGeo,cwMat); m.rotation.x=-Math.PI/2; m.position.set(rx,0.018,rz); scene.add(m); }
   function crosswalkTex(){ const s=128,c=document.createElement('canvas'); c.width=c.height=s; const g=c.getContext('2d'); g.clearRect(0,0,s,s); g.fillStyle='#d8d8cc'; const b=18; for(let x=6;x<s-6;x+=12){g.fillRect(x,2,6,b);g.fillRect(x,s-b-2,6,b);} for(let y=6;y<s-6;y+=12){g.fillRect(2,y,b,6);g.fillRect(s-b-2,y,b,6);} const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; }
   // street lamps along the main roads

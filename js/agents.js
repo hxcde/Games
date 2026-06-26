@@ -9,7 +9,7 @@ const GY = 0.26;                            // sidewalk top
 
 export function createAgents(scene, A, ctx) {
   const T = A.tex, rnd = (a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)];
-  const mixers = [], peds = [], cars = [];
+  const mixers = [], peds = [], cars = [], obstacles = [];   // obstacles: {pos, r} for player collision
 
   // ---------- shared vehicle materials -------------------------------------
   const chrome = new THREE.MeshStandardMaterial({ color: 0xcdd2d8, metalness: 1, roughness: 0.18, envMapIntensity: 1.6 });
@@ -77,18 +77,18 @@ export function createAgents(scene, A, ctx) {
   const R = ROADS, LANE = 2.4;
   const nb = (i,j)=>{ const o=[]; if(i>0)o.push([i-1,j]); if(i<R.length-1)o.push([i+1,j]); if(j>0)o.push([i,j-1]); if(j<R.length-1)o.push([i,j+1]); return o; };
   const np = (i,j)=> new THREE.Vector3(R[i],0,R[j]);
-  function addCar(make){ const g=make; scene.add(g); const i=(Math.random()*R.length)|0, j=(Math.random()*R.length)|0; const n=nb(i,j); const [ti,tj]=n[(Math.random()*n.length)|0]; cars.push({g,fi:i,fj:j,ti,tj,t:Math.random(),speed:rnd(5,9)}); }
+  function addCar(make){ const g=make; scene.add(g); const i=(Math.random()*R.length)|0, j=(Math.random()*R.length)|0; const n=nb(i,j); const [ti,tj]=n[(Math.random()*n.length)|0]; cars.push({g,fi:i,fj:j,ti,tj,t:Math.random(),speed:rnd(5,9)}); obstacles.push({pos:g.position,r:2.3}); }
   for (let i=0;i<5;i++) addCar(makeCar(pick(PAINT), Math.random()<0.4));
   addCar(makeVan(pick(PAINT)));
 
   // parked vehicles along curbs
-  function park(g,x,z,rotY){ g.position.set(x,0,z); g.rotation.y=rotY; scene.add(g); }
-  park(makeCar(0x6b2f2f,true), ROAD_HALF-1.0, 30, 0);
-  park(makeVan(0x4a5240), -(ROAD_HALF-1.0), -22, Math.PI);
-  park(makeCar(0x24405e,false), ROAD_HALF-1.0, -50, 0);
-  park(makeBike(0x39d2ff), ROAD_HALF-0.7, 12, 0.2);
-  park(makeBike(0xff4db0), ROAD_HALF-0.7, 13.4, 0.18);
-  park(makeBike(0xffae3c), -(ROAD_HALF-0.7), 46, Math.PI-0.2);
+  function park(g,x,z,rotY,r){ g.position.set(x,0,z); g.rotation.y=rotY; scene.add(g); obstacles.push({pos:g.position,r:r||2.3}); }
+  park(makeCar(0x6b2f2f,true), ROAD_HALF-1.0, 30, 0, 2.5);
+  park(makeVan(0x4a5240), -(ROAD_HALF-1.0), -22, Math.PI, 2.8);
+  park(makeCar(0x24405e,false), ROAD_HALF-1.0, -50, 0, 2.5);
+  park(makeBike(0x39d2ff), ROAD_HALF-0.7, 12, 0.2, 1.1);
+  park(makeBike(0xff4db0), ROAD_HALF-0.7, 13.4, 0.18, 1.1);
+  park(makeBike(0xffae3c), -(ROAD_HALF-0.7), 46, Math.PI-0.2, 1.1);
 
   function stepCars(dt){ const from=new THREE.Vector3(),to=new THREE.Vector3(),dir=new THREE.Vector3();
     for (const c of cars){ from.copy(np(c.fi,c.fj)); to.copy(np(c.ti,c.tj)); let L=Math.max(0.1,from.distanceTo(to)); c.t+=c.speed*dt/L;
@@ -148,5 +148,5 @@ export function createAgents(scene, A, ctx) {
     drone.position.set(Math.sin(t*0.2)*20, 5+Math.sin(t*1.4)*0.3, ((t*5)%(2*ISLAND))-ISLAND); drone.rotation.y=Math.PI+Math.sin(t*0.2)*0.3; dblink.visible=Math.sin(t*6)>0;
     for (const fl of fliers){ fl.g.position.x+=fl.vx*dt; if(fl.g.position.x>150)fl.g.position.x=-150; if(fl.g.position.x<-150)fl.g.position.x=150; fl.g.rotation.y=fl.vx>0?0:Math.PI; }
   }
-  return { update };
+  return { update, obstacles };
 }

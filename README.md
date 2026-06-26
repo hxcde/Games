@@ -20,6 +20,10 @@ läuft im Browser.
   Sonnenuntergang spiegelt.
 - **Mehrere Straßen** (Raster mit Kreuzungen, Zebrastreifen, Fahrbahnmarkierungen,
   Straßenlaternen).
+- **Mehrere Ebenen**: begehbare Treppen, eine erhöhte Plaza-Terrasse und eine
+  Fußgänger-Überführung über die Hauptstraße (Höhen-Sampling per Raycast).
+- **Kollision** mit Gebäuden und Fahrzeugen (man läuft nicht mehr durch Autos).
+- **Echte Bäume** (Photogrammetrie-Modell, Poly Haven CC0) im Park/Plaza.
 - Bezirke: **Park** (Rasen, Wege, Bäume, Laternen, Brunnen, Bänke),
   **Parkhaus** (mehrstöckig, Rampen-Decks, Säulen, geparkte Autos, „P"-Schild),
   **Plaza**, sowie mehrere **Gebäude-Blocks** mit Läden (Neo-Ramen, Cyberware,
