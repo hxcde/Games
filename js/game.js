@@ -24,7 +24,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = LOW ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 2200);
+const camera = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.1, 4000);
 camera.position.set(0, 1.7, 34);
 
 function softCircle(){ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); const r=g.createRadialGradient(32,32,0,32,32,32); r.addColorStop(0,'rgba(255,255,255,1)'); r.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=r; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(c); }
@@ -79,9 +79,12 @@ function buildSkyline(){
       const u=new THREE.Mesh(g2,[m,m,roofMat,roofMat,m,m]); u.position.set(x,WATER_Y+bh+uh/2,z); grp.add(u);
       if(Math.random()<0.6){ const ant=new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.6,bh*0.15,6),roofMat); ant.position.set(x,WATER_Y+bh+uh+bh*0.07,z); grp.add(ant); } }
   }
-  for (const [rad,count] of [[170,40],[250,48],[350,52],[470,48],[600,40]]){
-    for (let i=0;i<count;i++){ const a=(i/count)*Math.PI*2 + (Math.random()-0.5)*0.12; const r=rad+Math.random()*55;
-      tower(Math.cos(a)*r, Math.sin(a)*r, 24+Math.random()*46, 24+Math.random()*46, 90+Math.random()*250+rad*0.18); } }
+  // distant mainland on ONE side only (a far coastline); open sea everywhere else
+  const CENTER = 0;        // +X direction (atan2(z,x)=0)
+  const SPREAD = 1.05;     // ~±60° sector
+  for (const [rad,count] of [[950,30],[1250,34],[1600,30],[2000,22]]){
+    for (let i=0;i<count;i++){ const a=CENTER + (Math.random()*2-1)*SPREAD; const r=rad+Math.random()*260;
+      tower(Math.cos(a)*r, Math.sin(a)*r, 50+Math.random()*100, 50+Math.random()*100, 200+Math.random()*420+rad*0.05); } }
   scene.add(grp);
 }
 
@@ -97,7 +100,7 @@ loadAll(renderer, (p,label)=>{ bar.style.width=Math.round(p*100)+'%'; loadtxt.te
 function buildWorld(A){
   const sky=makeSky(); scene.background=sky;
   const pmrem=new THREE.PMREMGenerator(renderer); scene.environment=pmrem.fromEquirectangular(sky).texture;
-  scene.fog=new THREE.Fog(0x5a5f80, 60, 820);   // dusk haze + aerial perspective on the skyline
+  scene.fog=new THREE.Fog(0x5a6080, 140, 3000); // light dusk haze near, far enough to keep the distant coast as a silhouette
 
   const sunDir=new THREE.Vector3(SUN_DIR.x,SUN_DIR.y,SUN_DIR.z).normalize();
   const sun=new THREE.DirectionalLight(0xffb163, 3.7); sun.castShadow=true;
