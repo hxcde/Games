@@ -3,684 +3,108 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#0c0a1f">
-<!-- Cache buster: force browsers to revalidate this file instead of serving a stale copy -->
+<meta name="theme-color" content="#05060f">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Block Blast</title>
+<title>NEON DRIFT — Cyberpunk Walk</title>
 <style>
-  :root {
-    --text: #f3f0ff;
-    --glass: rgba(255,255,255,0.07);
-    --glass-strong: rgba(255,255,255,0.12);
-    --stroke: rgba(255,255,255,0.22);
-    --stroke-soft: rgba(255,255,255,0.10);
-  }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body {
-    height: 100%;
-    overflow: hidden;
-    background: #0a0818;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: var(--text);
-    user-select: none;
-    -webkit-user-select: none;
-    touch-action: none;
-  }
-  /* ---- Liquid background: floating colour orbs behind frosted glass ---- */
-  .bg { position: fixed; inset: 0; overflow: hidden; z-index: 0; }
-  .orb {
-    position: absolute;
-    border-radius: 50%;
-    filter: blur(60px);
-    opacity: 0.55;
-    will-change: transform;
-  }
-  .orb.o1 { width: 60vw; height: 60vw; background: #6a5cff; top: -10vh; left: -15vw; animation: drift1 18s ease-in-out infinite; }
-  .orb.o2 { width: 55vw; height: 55vw; background: #ff5d9e; bottom: -8vh; right: -12vw; animation: drift2 22s ease-in-out infinite; }
-  .orb.o3 { width: 45vw; height: 45vw; background: #36d8ff; top: 35%; left: 30%; animation: drift3 26s ease-in-out infinite; }
-  @keyframes drift1 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(8vw,12vh) scale(1.15)} }
-  @keyframes drift2 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-10vw,-8vh) scale(1.2)} }
-  @keyframes drift3 { 0%,100%{transform:translate(0,0) scale(1)} 50%{transform:translate(-6vw,10vh) scale(0.85)} }
+  html, body { height: 100%; overflow: hidden; background: #05060f; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #eaf2ff; }
+  #c { display: block; width: 100vw; height: 100vh; }
 
-  #app {
-    position: relative;
-    z-index: 1;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: space-between;
-    padding: env(safe-area-inset-top) 14px env(safe-area-inset-bottom);
-    max-width: 520px;
-    margin: 0 auto;
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+  #crosshair {
+    position: absolute; left: 50%; top: 50%; width: 6px; height: 6px;
+    margin: -3px 0 0 -3px; border-radius: 50%;
+    background: rgba(120,230,255,0.9); box-shadow: 0 0 8px rgba(120,230,255,0.9);
+    opacity: 0; transition: opacity .3s;
   }
-  header {
-    width: 100%;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 4px 8px;
-    gap: 10px;
+  #hud.playing #crosshair { opacity: 1; }
+  #fps {
+    position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 10px;
+    font-size: 11px; letter-spacing: .5px; color: rgba(170,200,230,.6);
+    font-variant-numeric: tabular-nums;
   }
-  .title {
-    font-size: 23px;
-    font-weight: 800;
-    letter-spacing: 1.5px;
-    background: linear-gradient(90deg, #b3a8ff, #ff9ed2 70%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    text-shadow: 0 2px 20px rgba(180,150,255,0.25);
-  }
-  .scores { display: flex; gap: 10px; align-items: center; }
-  /* glass pills */
-  .score-box {
-    text-align: center;
-    padding: 8px 14px;
-    border-radius: 16px;
-    background: var(--glass);
-    border: 1px solid var(--stroke-soft);
-    backdrop-filter: blur(16px) saturate(1.5);
-    -webkit-backdrop-filter: blur(16px) saturate(1.5);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), 0 6px 18px rgba(0,0,0,0.25);
-    min-width: 64px;
-  }
-  .score-label { font-size: 9px; opacity: 0.65; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600; }
-  .score-val { font-size: 22px; font-weight: 800; line-height: 1.15; transition: transform 0.2s cubic-bezier(.2,1.4,.4,1); }
-  .score-val.bump { transform: scale(1.3); }
-  #best .score-val { color: #ffd97a; }
-
-  .board-wrap { position: relative; width: 100%; display: flex; justify-content: center; }
-  /* glass board panel */
-  #board {
-    position: relative;
-    border-radius: 22px;
-    padding: 8px;
-    display: grid;
-    gap: 4px;
-    background: var(--glass);
-    border: 1px solid var(--stroke);
-    backdrop-filter: blur(22px) saturate(1.6);
-    -webkit-backdrop-filter: blur(22px) saturate(1.6);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -2px 12px rgba(0,0,0,0.25), 0 18px 50px rgba(0,0,0,0.45);
-    touch-action: none;
-  }
-  .cell {
-    background: rgba(255,255,255,0.05);
-    border-radius: 8px;
-    position: relative;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
-    transition: background 0.12s ease, box-shadow 0.12s ease;
-  }
-  /* glossy gem tile */
-  .cell.filled, .pcell {
-    box-shadow:
-      inset 0 2px 1px rgba(255,255,255,0.55),
-      inset 0 -4px 6px rgba(0,0,0,0.3),
-      0 2px 5px rgba(0,0,0,0.25);
-  }
-  .cell.filled::after, .pcell::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: linear-gradient(150deg, rgba(255,255,255,0.55), rgba(255,255,255,0.12) 38%, rgba(255,255,255,0) 60%);
-    pointer-events: none;
-  }
-  .pcell { position: relative; }
-  .cell.settle { animation: settle 0.28s cubic-bezier(.2,1.3,.4,1); }
-  @keyframes settle { 0%{transform:scale(0.55);opacity:0} 100%{transform:scale(1);opacity:1} }
-  .cell.preview {
-    background: rgba(255,255,255,0.28);
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.4);
-  }
-  .cell.preview-bad { background: rgba(255,90,90,0.28); box-shadow: inset 0 0 0 1px rgba(255,120,120,0.5); }
-  .cell.clearing { animation: pop 0.36s ease forwards; z-index: 2; }
-  @keyframes pop {
-    0% { transform: scale(1); }
-    35% { transform: scale(1.2); filter: brightness(2) saturate(1.4); }
-    100% { transform: scale(0); opacity: 0; }
+  #build {
+    position: absolute; right: 8px; bottom: calc(6px + env(safe-area-inset-bottom));
+    font-size: 10px; opacity: .3;
   }
 
-  /* glass tray panel */
-  #tray {
-    width: 100%;
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    gap: 8px;
-    min-height: 116px;
-    margin-bottom: 8px;
-    padding: 12px 8px;
-    border-radius: 22px;
-    background: var(--glass);
-    border: 1px solid var(--stroke-soft);
-    backdrop-filter: blur(18px) saturate(1.5);
-    -webkit-backdrop-filter: blur(18px) saturate(1.5);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 12px 30px rgba(0,0,0,0.35);
-  }
-  .piece {
-    display: grid;
-    gap: 4px;
-    touch-action: none;
-    transition: transform 0.14s cubic-bezier(.2,1.4,.4,1), opacity 0.25s;
-    /* generous invisible padding => big, forgiving grab area */
-    padding: 22px;
-    margin: -16px;
-    border-radius: 18px;
-  }
-  .piece:active { transform: scale(1.06); }
-  .piece.used { opacity: 0; pointer-events: none; transform: scale(0.4); }
-  .piece.dragging { opacity: 0; }
-  .pcell { border-radius: 6px; }
-
-  /* ---- dragged ghost ---- */
-  #ghost {
-    position: fixed;
-    top: 0; left: 0;
-    pointer-events: none;
-    z-index: 100;
-    opacity: 0;
-    transition: opacity 0.12s ease;
-    will-change: transform;
-  }
-  #ghost.active { opacity: 1; }
-  .ghost-grid {
-    display: grid;
-    transform: scale(0.6);
-    transition: transform 0.16s cubic-bezier(.2,1.5,.4,1);
-    filter: drop-shadow(0 12px 18px rgba(0,0,0,0.45));
-  }
-  #ghost.active .ghost-grid { transform: scale(1.04); }
-  #ghost .pcell { border-radius: 7px; }
-
-  /* ---- overlay ---- */
+  /* start / pause overlay */
   #overlay {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    z-index: 200;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.35s;
-    background: rgba(8,6,20,0.45);
-    backdrop-filter: blur(14px) saturate(1.3);
-    -webkit-backdrop-filter: blur(14px) saturate(1.3);
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; text-align: center; padding: 24px;
+    background: radial-gradient(circle at 50% 35%, rgba(40,12,60,.55), rgba(5,6,15,.86));
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    transition: opacity .4s;
   }
-  #overlay.show { opacity: 1; pointer-events: auto; }
-  .panel {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    padding: 34px 40px;
-    border-radius: 28px;
-    background: var(--glass-strong);
-    border: 1px solid var(--stroke);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 20px 60px rgba(0,0,0,0.5);
-    transform: scale(0.85);
-    transition: transform 0.4s cubic-bezier(.2,1.3,.35,1);
-  }
-  #overlay.show .panel { transform: scale(1); }
-  #overlay h1 {
-    font-size: 32px; font-weight: 800;
-    background: linear-gradient(90deg,#b3a8ff,#ff9ed2);
+  #overlay.hidden { opacity: 0; pointer-events: none; }
+  .logo {
+    font-size: 40px; font-weight: 900; letter-spacing: 4px;
+    background: linear-gradient(90deg,#5ef0ff,#b06bff 50%,#ff5da2);
     -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 40px rgba(150,90,255,.4);
   }
-  #overlay .final { font-size: 16px; opacity: 0.85; }
-  .btn {
-    margin-top: 6px;
-    color: #fff;
-    border: 1px solid rgba(255,255,255,0.35);
-    padding: 14px 40px;
-    border-radius: 30px;
-    font-size: 18px;
-    font-weight: 700;
-    cursor: pointer;
-    background: linear-gradient(135deg, rgba(150,120,255,0.55), rgba(255,120,200,0.45));
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 10px 26px rgba(124,92,255,0.45);
-    transition: transform 0.12s;
+  .sub { font-size: 14px; opacity: .7; max-width: 360px; line-height: 1.5; }
+  .keys { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+  .key { font-size: 12px; padding: 6px 12px; border-radius: 10px;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); }
+  .play-btn {
+    pointer-events: auto; cursor: pointer; margin-top: 8px;
+    padding: 15px 46px; border-radius: 30px; border: 1px solid rgba(255,255,255,.35);
+    font-size: 18px; font-weight: 700; color: #fff;
+    background: linear-gradient(135deg, rgba(110,90,255,.6), rgba(255,90,180,.5));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 12px 30px rgba(124,92,255,.45);
   }
-  .btn:active { transform: scale(0.95); }
+  .play-btn:active { transform: scale(.96); }
+  #loading { font-size: 13px; opacity: .6; }
 
-  .combo-pop {
-    position: fixed;
-    pointer-events: none;
-    font-weight: 800;
-    font-size: 30px;
-    letter-spacing: 1px;
-    background: linear-gradient(90deg,#fff3b0,#ffcf6b);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: 0 4px 22px rgba(255,200,90,0.5);
-    z-index: 150;
-    animation: floatUp 1s ease forwards;
+  /* mobile controls */
+  #touch { position: fixed; inset: 0; z-index: 15; display: none; }
+  #hud.playing.touch ~ #touch, body.touch #touch { }
+  #stick {
+    position: absolute; left: 24px; bottom: calc(28px + env(safe-area-inset-bottom));
+    width: 120px; height: 120px; border-radius: 50%;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.15);
+    pointer-events: auto;
   }
-  @keyframes floatUp {
-    0% { transform: translate(-50%,-50%) scale(0.4); opacity: 0; }
-    25% { transform: translate(-50%,-50%) scale(1.15); opacity: 1; }
-    100% { transform: translate(-50%,-140%) scale(1); opacity: 0; }
-  }
-  #version {
-    position: fixed;
-    right: 8px;
-    bottom: calc(4px + env(safe-area-inset-bottom));
-    z-index: 5;
-    font-size: 10px;
-    letter-spacing: 0.5px;
-    opacity: 0.35;
-    pointer-events: none;
+  #nub {
+    position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px;
+    border-radius: 50%; background: rgba(150,200,255,.35); border: 1px solid rgba(200,230,255,.5);
   }
 </style>
 </head>
 <body>
-<div class="bg"><div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div></div>
-<div id="app">
-  <header>
-    <div class="title">BLOCK BLAST</div>
-    <div class="scores">
-      <div class="score-box" id="cur"><div class="score-label">Punkte</div><div class="score-val">0</div></div>
-      <div class="score-box" id="best"><div class="score-label">Best</div><div class="score-val">0</div></div>
-    </div>
-  </header>
-  <div class="board-wrap"><div id="board"></div></div>
-  <div id="tray"></div>
+<canvas id="c"></canvas>
+<div id="hud">
+  <div id="crosshair"></div>
+  <div id="fps"></div>
+  <div id="build"></div>
 </div>
-<div id="ghost"></div>
-<div id="version"></div>
+<div id="touch"><div id="stick"><div id="nub"></div></div></div>
 <div id="overlay">
-  <div class="panel">
-    <h1>Game Over</h1>
-    <div class="final"></div>
-    <button class="btn" id="restart">Nochmal</button>
+  <div class="logo">NEON DRIFT</div>
+  <div class="sub">Eine kleine Cyberpunk-Welt zum Umherlaufen. Verlauf dich in den nassen Neon-Gassen.</div>
+  <div class="keys">
+    <span class="key">WASD / Pfeile — Laufen</span>
+    <span class="key">Maus — Umsehen</span>
+    <span class="key">Shift — Sprinten</span>
+    <span class="key">Esc — Pause</span>
   </div>
+  <div id="loading">Lade Welt …</div>
+  <button class="play-btn" id="play" style="display:none">Betreten</button>
 </div>
-<script>
-(() => {
-  // Bump BUILD on every change so a cached page reveals it's stale at a glance.
-  const BUILD = '2026.06.25.1';
-  const vEl = document.getElementById('version');
-  if (vEl) vEl.textContent = 'Build ' + BUILD;
 
-  const SIZE = 8;
-  const COLORS = ['#ff5d73','#ffa14a','#ffd23f','#5ee06b','#3fc7ff','#7c8cff','#c46bff','#ff6bd5'];
-
-  const SHAPES = [
-    [[0,0]],
-    [[0,0],[0,1]], [[0,0],[1,0]],
-    [[0,0],[0,1],[0,2]], [[0,0],[1,0],[2,0]],
-    [[0,0],[0,1],[0,2],[0,3]], [[0,0],[1,0],[2,0],[3,0]],
-    [[0,0],[0,1],[1,0],[1,1]],
-    [[0,0],[0,1],[0,2],[1,0],[2,0]],
-    [[0,0],[0,1],[0,2],[1,2],[2,2]],
-    [[2,0],[2,1],[2,2],[1,0],[0,0]],
-    [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2]],
-    [[0,0],[1,0],[0,1],[1,1],[2,0],[2,1]],
-    [[0,1],[1,0],[1,1],[1,2],[2,1]],
-    [[0,0],[1,1],[1,0],[2,1]],
-    [[0,0],[0,1],[1,1],[1,2]],
-    [[0,0],[1,0],[1,1],[2,1]],
-    [[0,0],[0,1],[0,2],[1,1]],
-    [[1,0],[0,1],[1,1],[2,1]],
-    [[0,0],[0,1],[0,2],[1,0],[1,2]],
-    [[0,0],[1,0],[2,0],[2,1],[2,2]],
-    [[0,0],[0,1],[0,2],[1,0],[1,1],[1,2],[2,0],[2,1],[2,2]],
-  ];
-
-  const boardEl = document.getElementById('board');
-  const trayEl = document.getElementById('tray');
-  const ghostEl = document.getElementById('ghost');
-  const overlay = document.getElementById('overlay');
-  const curValEl = document.querySelector('#cur .score-val');
-  const bestValEl = document.querySelector('#best .score-val');
-  const finalEl = document.querySelector('#overlay .final');
-
-  let grid, cellEls, score, best, pieces, cellSize, gap;
-
-  best = parseInt(localStorage.getItem('blockblast_best') || '0', 10);
-  bestValEl.textContent = best;
-
-  function computeSizes() {
-    const wrapW = Math.min(document.getElementById('app').clientWidth - 28, 460);
-    gap = 4;
-    const pad = 8;
-    cellSize = Math.floor((wrapW - pad*2 - gap*(SIZE-1)) / SIZE);
-    cellSize = Math.max(28, Math.min(cellSize, 52));
+<script type="importmap">
+{
+  "imports": {
+    "three": "./libs/three.module.js",
+    "three/addons/": "./libs/jsm/"
   }
-
-  function buildBoard() {
-    computeSizes();
-    boardEl.style.gridTemplateColumns = `repeat(${SIZE}, ${cellSize}px)`;
-    boardEl.style.gridTemplateRows = `repeat(${SIZE}, ${cellSize}px)`;
-    boardEl.innerHTML = '';
-    cellEls = [];
-    for (let r = 0; r < SIZE; r++) {
-      for (let c = 0; c < SIZE; c++) {
-        const d = document.createElement('div');
-        d.className = 'cell';
-        d.style.width = cellSize + 'px';
-        d.style.height = cellSize + 'px';
-        boardEl.appendChild(d);
-        cellEls.push(d);
-      }
-    }
-  }
-
-  function newGame() {
-    grid = Array.from({length: SIZE}, () => Array(SIZE).fill(null));
-    score = 0;
-    curValEl.textContent = 0;
-    buildBoard();
-    renderGrid();
-    spawnPieces();
-    overlay.classList.remove('show');
-  }
-
-  function renderGrid() {
-    for (let r = 0; r < SIZE; r++) {
-      for (let c = 0; c < SIZE; c++) {
-        const el = cellEls[r*SIZE + c];
-        el.classList.remove('preview','preview-bad');
-        if (grid[r][c]) {
-          el.classList.add('filled');
-          el.style.background = grid[r][c];
-        } else {
-          el.classList.remove('filled');
-          el.style.background = '';
-        }
-      }
-    }
-  }
-
-  function normalize(shape) {
-    const minR = Math.min(...shape.map(s => s[0]));
-    const minC = Math.min(...shape.map(s => s[1]));
-    return shape.map(([r,c]) => [r-minR, c-minC]);
-  }
-
-  function randPiece() {
-    const shape = normalize(SHAPES[Math.floor(Math.random()*SHAPES.length)]);
-    const color = COLORS[Math.floor(Math.random()*COLORS.length)];
-    const rows = Math.max(...shape.map(s => s[0])) + 1;
-    const cols = Math.max(...shape.map(s => s[1])) + 1;
-    return { shape, color, rows, cols, used: false };
-  }
-
-  function spawnPieces() {
-    pieces = [randPiece(), randPiece(), randPiece()];
-    renderTray();
-  }
-
-  function renderTray() {
-    trayEl.innerHTML = '';
-    const ps = Math.max(20, Math.floor(cellSize * 0.66));
-    pieces.forEach((p, i) => {
-      const el = document.createElement('div');
-      el.className = 'piece' + (p.used ? ' used' : '');
-      el.style.gridTemplateColumns = `repeat(${p.cols}, ${ps}px)`;
-      el.style.gridTemplateRows = `repeat(${p.rows}, ${ps}px)`;
-      const set = new Set(p.shape.map(s => s[0]+','+s[1]));
-      for (let r = 0; r < p.rows; r++) {
-        for (let c = 0; c < p.cols; c++) {
-          const cell = document.createElement('div');
-          if (set.has(r+','+c)) {
-            cell.className = 'pcell';
-            cell.style.background = p.color;
-          }
-          cell.style.width = ps + 'px';
-          cell.style.height = ps + 'px';
-          el.appendChild(cell);
-        }
-      }
-      el.dataset.idx = i;
-      if (!p.used) attachDrag(el, p, i);
-      trayEl.appendChild(el);
-    });
-  }
-
-  // ---- Drag handling ----
-  let drag = null;
-  let pendingEvent = null, rafId = null;
-  let activePreview = [];   // cells currently flagged as preview
-  let previewKey = null;    // last row,col,ok signature to skip redundant work
-
-  function attachDrag(el, piece, idx) {
-    el.addEventListener('pointerdown', e => startDrag(e, el, piece, idx));
-  }
-
-  function buildGhost(piece) {
-    ghostEl.innerHTML = '';
-    const gridDiv = document.createElement('div');
-    gridDiv.className = 'ghost-grid';
-    gridDiv.style.gridTemplateColumns = `repeat(${piece.cols}, ${cellSize}px)`;
-    gridDiv.style.gridTemplateRows = `repeat(${piece.rows}, ${cellSize}px)`;
-    const set = new Set(piece.shape.map(s => s[0]+','+s[1]));
-    for (let r = 0; r < piece.rows; r++) {
-      for (let c = 0; c < piece.cols; c++) {
-        const cell = document.createElement('div');
-        cell.style.width = cellSize + 'px';
-        cell.style.height = cellSize + 'px';
-        if (set.has(r+','+c)) { cell.className = 'pcell'; cell.style.background = piece.color; }
-        gridDiv.appendChild(cell);
-      }
-    }
-    ghostEl.appendChild(gridDiv);
-  }
-
-  function startDrag(e, el, piece, idx) {
-    if (piece.used || drag) return;
-    e.preventDefault();
-    el.setPointerCapture(e.pointerId);
-    el.classList.add('dragging');
-    buildGhost(piece);
-    // force layout so the scale-up transition plays from 0.6 -> 1.04
-    void ghostEl.offsetWidth;
-    ghostEl.classList.add('active');
-
-    drag = { piece, idx, el, pointerId: e.pointerId, lastR: null, lastC: null };
-    previewKey = null;
-    schedule(e);
-
-    el.addEventListener('pointermove', onMove);
-    el.addEventListener('pointerup', endDrag);
-    el.addEventListener('pointercancel', endDrag);
-  }
-
-  function onMove(e) {
-    if (!drag) return;
-    e.preventDefault();
-    schedule(e);
-  }
-
-  // batch pointer moves into a single rAF for fluid updates
-  function schedule(e) {
-    pendingEvent = e;
-    if (rafId) return;
-    rafId = requestAnimationFrame(processMove);
-  }
-
-  function processMove() {
-    rafId = null;
-    if (!drag || !pendingEvent) return;
-    const e = pendingEvent;
-    const piece = drag.piece;
-    const gw = piece.cols * cellSize;
-    const gh = piece.rows * cellSize;
-    const x = e.clientX - gw/2;
-    const y = e.clientY - gh - 28;   // lift above finger so the piece is visible
-    ghostEl.style.transform = `translate(${x}px, ${y}px)`;
-
-    const rect = boardEl.getBoundingClientRect();
-    const pad = 8;
-    const col = Math.round((x - rect.left - pad) / (cellSize + gap));
-    const row = Math.round((y - rect.top - pad) / (cellSize + gap));
-    drag.lastR = row;
-    drag.lastC = col;
-    updatePreview(row, col, piece);
-  }
-
-  function clearPreview() {
-    for (const el of activePreview) el.classList.remove('preview','preview-bad');
-    activePreview = [];
-  }
-
-  function canPlace(row, col, piece) {
-    for (const [dr, dc] of piece.shape) {
-      const r = row + dr, c = col + dc;
-      if (r < 0 || c < 0 || r >= SIZE || c >= SIZE) return false;
-      if (grid[r][c]) return false;
-    }
-    return true;
-  }
-
-  // incremental preview: only touches cells that change, not all 64
-  function updatePreview(row, col, piece) {
-    const ok = canPlace(row, col, piece);
-    const key = row + ':' + col + ':' + (ok ? 1 : 0);
-    if (key === previewKey) return;
-    previewKey = key;
-    clearPreview();
-    const cls = ok ? 'preview' : 'preview-bad';
-    for (const [dr, dc] of piece.shape) {
-      const r = row + dr, c = col + dc;
-      if (r >= 0 && c >= 0 && r < SIZE && c < SIZE) {
-        const el = cellEls[r*SIZE + c];
-        el.classList.add(cls);
-        activePreview.push(el);
-      }
-    }
-  }
-
-  function endDrag() {
-    if (!drag) return;
-    const { el, piece, idx, lastR, lastC } = drag;
-    el.removeEventListener('pointermove', onMove);
-    el.removeEventListener('pointerup', endDrag);
-    el.removeEventListener('pointercancel', endDrag);
-    el.classList.remove('dragging');
-    ghostEl.classList.remove('active');
-    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-    pendingEvent = null;
-    clearPreview();
-
-    const place = (lastR !== null && canPlace(lastR, lastC, piece));
-    const d = drag;
-    drag = null;
-    if (place) placePiece(lastR, lastC, piece, idx);
-    else if (el) { el.style.transform = ''; }  // snap back
-  }
-
-  function placePiece(row, col, piece) {
-    for (const [dr, dc] of piece.shape) {
-      grid[row+dr][col+dc] = piece.color;
-    }
-    piece.used = true;
-    renderGrid();
-    // settle animation on freshly placed cells
-    for (const [dr, dc] of piece.shape) {
-      const el = cellEls[(row+dr)*SIZE + (col+dc)];
-      el.classList.add('settle');
-      el.addEventListener('animationend', () => el.classList.remove('settle'), { once: true });
-    }
-    renderTray();
-
-    addScore(piece.shape.length);
-    clearLines();
-
-    if (pieces.every(p => p.used)) spawnPieces();
-    setTimeout(checkGameOver, 60);
-  }
-
-  function clearLines() {
-    const fullRows = [], fullCols = [];
-    for (let r = 0; r < SIZE; r++) if (grid[r].every(c => c)) fullRows.push(r);
-    for (let c = 0; c < SIZE; c++) {
-      let full = true;
-      for (let r = 0; r < SIZE; r++) if (!grid[r][c]) { full = false; break; }
-      if (full) fullCols.push(c);
-    }
-    const total = fullRows.length + fullCols.length;
-    if (total === 0) return;
-
-    const toClear = new Set();
-    fullRows.forEach(r => { for (let c = 0; c < SIZE; c++) toClear.add(r+','+c); });
-    fullCols.forEach(c => { for (let r = 0; r < SIZE; r++) toClear.add(r+','+c); });
-
-    toClear.forEach(key => {
-      const [r, c] = key.split(',').map(Number);
-      cellEls[r*SIZE + c].classList.add('clearing');
-    });
-
-    addScore(total * 10 * total);
-    showCombo(total);
-
-    setTimeout(() => {
-      toClear.forEach(key => {
-        const [r, c] = key.split(',').map(Number);
-        grid[r][c] = null;
-        cellEls[r*SIZE + c].classList.remove('clearing');
-      });
-      renderGrid();
-    }, 360);
-  }
-
-  function showCombo(total) {
-    if (total < 2) return;
-    const pop = document.createElement('div');
-    pop.className = 'combo-pop';
-    pop.textContent = total >= 4 ? 'BLAST!' : total + 'x COMBO!';
-    pop.style.left = '50%';
-    pop.style.top = '42%';
-    document.body.appendChild(pop);
-    setTimeout(() => pop.remove(), 1000);
-  }
-
-  function addScore(n) {
-    score += n;
-    curValEl.textContent = score;
-    curValEl.classList.add('bump');
-    setTimeout(() => curValEl.classList.remove('bump'), 200);
-    if (score > best) {
-      best = score;
-      bestValEl.textContent = best;
-      localStorage.setItem('blockblast_best', best);
-    }
-  }
-
-  function anyMoveAvailable() {
-    for (const p of pieces) {
-      if (p.used) continue;
-      for (let r = 0; r < SIZE; r++)
-        for (let c = 0; c < SIZE; c++)
-          if (canPlace(r, c, p)) return true;
-    }
-    return false;
-  }
-
-  function checkGameOver() {
-    if (!anyMoveAvailable()) {
-      finalEl.textContent = `Punkte: ${score} · Best: ${best}`;
-      overlay.classList.add('show');
-    }
-  }
-
-  document.getElementById('restart').addEventListener('click', newGame);
-
-  let resizeT;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeT);
-    resizeT = setTimeout(() => { buildBoard(); renderGrid(); renderTray(); }, 150);
-  });
-
-  newGame();
-})();
+}
 </script>
+<script type="module" src="./js/game.js"></script>
 </body>
 </html>
