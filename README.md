@@ -1,54 +1,79 @@
-# BLUE HOUR — City Walk
+# SUNSET BLOCK — Cyberpunk Vertical Slice
 
-Eine kleine Open-World-Demo: First-Person durch eine Stadt zur **blauen Stunde**
-laufen. Realistische Beton- und Glas-Hochhäuser mit beleuchteten Fenstern, echte
-Straßen mit Fahrbahnmarkierungen und Zebrastreifen, Autos mit Scheinwerfern, nasser
-spiegelnder Asphalt, tiefe warme Sonne mit langen Schatten und atmosphärischer
-Dunst. Gebaut mit [three.js](https://threejs.org) (WebGL), läuft im Browser.
+Eine spielbare Straßenszene als **Vertical Slice** für ein realistisches
+Cyberpunk-Spiel. Eine enge Großstadtgasse einer **Inselstadt** der nahen
+Zukunft zur **goldenen Abendstunde** — trocken, staubig, warm und technisch
+überladen. Kein Regen, keine nasse Nacht. Gebaut mit [three.js](https://threejs.org)
+(WebGL), läuft im Browser.
 
-> Stilrichtung: realistisch (AAA-artig), aber technisch abgespeckt fürs
-> Browser-Budget — PBR-Materialien, Sonnenlicht mit weichen Schatten,
-> Umgebungs-Reflexionen, dezenter Bloom, HDR-Tonemapping.
+## Atmosphäre & Look
+- **Golden Hour**: tiefe warme Sonne am Ende der Straße über dem Wasser, lange
+  Schatten von Gebäuden, Schildern und Kabeln, staubiger Dunst in der Luft.
+- **Image-Based Lighting** aus einem echten Sonnenuntergangs-HDRI (realistisches
+  Licht & Reflexionen) + warmes Richtungslicht mit weichen Schatten.
+- **Echte PBR-Texturen** (Asphalt, Beton, Backstein – mit Normal-/Roughness-Maps).
+- Warmes Sonnenlicht mischt sich mit **kalten Akzentlichtern** von Werbescreens,
+  Neon-Schildern und Automaten – subtil, kein Neon-Kitsch.
+- Trockener Asphalt, **keine nassen Flächen, kein Regen**. Wasser nur rund um die
+  Insel (spiegelt den Sonnenuntergang).
 
-## Starten
+## Szene
+- Inselstadt-Block, ringsum Meer mit Reling/Kaikante an den Rändern.
+- Dichte Gasse mit hohen Gebäuden links und rechts, Gehwege, Bordsteine, Gullys.
+- Läden: **Neo-Ramen**, **Akari Cyberware**, **Pawn 24H**, **The Wired Bar**,
+  Getränkeautomaten, Hinterhof-Gasse.
+- Details: Klimaanlagen, Rohre, Kabel über der Straße, Kameras, Stromkästen,
+  Graffiti, Plakate, Warnschilder, Müllsäcke, Kartons, Hydranten, Bänke.
+- NPCs: Passanten, ein Händler, Security, eine obdachlose Figur, eine
+  Lieferdrohne. Fahrzeuge: umgebaute Autos, Lieferwagen, E-Bikes; fliegende
+  Fahrzeuge weit oben im Hintergrund.
+- Leichter Dampf aus Lüftungsschächten und Gullys.
 
-Das Spiel nutzt ES-Module, die der Browser aus Sicherheitsgründen **nicht** per
-Doppelklick (`file://`) lädt. Es muss über einen lokalen Webserver laufen:
+## Gameplay & Interaktion
+Frei durch die Straße bewegen. Drei interaktive Punkte (Fadenkreuz drauf →
+`E` / USE):
+1. **Werbescreen / Terminal** – Infos & Wegweiser.
+2. **Händler** (Neo-Ramen) – Dialog.
+3. **Verschlossene Tür** in der Seitengasse – Keypad.
 
-```bash
-# Option A: Python (fast überall vorinstalliert)
-python3 -m http.server 8000
-#  -> dann im Browser öffnen:  http://localhost:8000
-
-# Option B: Node
-npx serve .
-
-# Option C: Skript in diesem Repo
-./start.sh
-```
-
-Danach `http://localhost:8000` öffnen und **„Betreten"** klicken.
+Wegeführung durch Licht (Sonne am Straßenende), Schilder und Architektur.
 
 ## Steuerung
+| Eingabe | Aktion |
+|---|---|
+| `W A S D` / Pfeile | Laufen |
+| Maus | Umsehen |
+| `Shift` | Rennen |
+| `E` | Interagieren |
+| Touch | Joystick (links) + Wischen (rechts), **USE**-Button |
 
-| Eingabe            | Aktion          |
-|--------------------|-----------------|
-| `W A S D` / Pfeile | Laufen          |
-| Maus               | Umsehen         |
-| `Shift`            | Sprinten        |
-| `Esc`              | Pause           |
-| Touch              | Joystick (links) + Wischen (rechts) zum Umsehen |
-
-Auf dem Handy erscheinen automatisch Touch-Steuerungen.
-
-## Aufbau
-
+## Starten
+ES-Module laden nicht per `file://` — ein lokaler Server ist nötig:
+```bash
+./start.sh        # oder:  python3 -m http.server 8000
 ```
-index.html      UI-Hülle, Importmap, Start-Overlay
-js/game.js      Spiel: Stadtgenerierung, Beleuchtung, Steuerung, Render-Loop
-libs/           Vendorte three.js + Addons (kein CDN nötig, läuft offline)
+→ `http://localhost:8000` öffnen → **„Betreten"**.
+
+## Projektstruktur
+```
+index.html        UI, Importmap, Start-/Lade-Overlay
+js/game.js        Renderer, Licht, Atmosphäre, Steuerung, Interaktion, Loop
+js/city.js        Insel, Straßen, Gebäude, Läden, Props, Schilder
+js/agents.js      NPCs, Fahrzeuge, Drohne, fliegende Fahrzeuge
+js/assets.js      Laden von HDRI, PBR-Texturen, Charakter-Modell
+js/canvasart.js   Prozedurale Schilder/Screens/Graffiti/Plakate
+js/config.js      Gemeinsame Maße der Szene
+libs/             three.js + Addons (vendored, kein CDN nötig)
+assets/           HDRI, PBR-Texturen, Charakter-Modell
 ```
 
-Die Stadt wird prozedural erzeugt (Gebäude mit Setbacks & Dachaufbauten,
-Fenster, Erdgeschoss-Shops, Straßenlaternen, fahrende Autos), ist also bei
-jedem Laden etwas anders.
+## Asset-Credits
+- **three.js** (MIT) und das Charakter-Modell `Soldier.glb` aus den three.js-Beispielen.
+- **HDRI** `venice_sunset` und **PBR-Texturen** (asphalt_02, concrete_wall_008,
+  dirty_concrete, brick_wall_006) von [Poly Haven](https://polyhaven.com) — **CC0**.
+
+## Hinweis zum „Fotorealismus"
+Dies ist eine Browser-Echtzeitszene: realistische Beleuchtung, Materialien und
+Assets im AAA-Stil, aber technisch fürs Web abgespeckt. Für mehr Realismus ließe
+sich später ergänzen: SSAO/Kontaktschatten, höhere Textur-/Schattenauflösung,
+mehr Geometrie-Detail und echte vertonte Dialoge.

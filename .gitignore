@@ -1,2 +1,2 @@
-.world*.png
-.preview.png
+.*.png
+node_modules/

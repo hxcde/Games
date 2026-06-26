@@ -3,107 +3,87 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#1c3358">
+<meta name="theme-color" content="#1a0f08">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>BLUE HOUR — City Walk</title>
+<title>SUNSET BLOCK — Cyberpunk Vertical Slice</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; overflow: hidden; background: #05060f; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #eaf2ff; }
+  html, body { height: 100%; overflow: hidden; background: #120a06; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #f3ece2; }
   #c { display: block; width: 100vw; height: 100vh; }
 
   #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
-  #crosshair {
-    position: absolute; left: 50%; top: 50%; width: 6px; height: 6px;
-    margin: -3px 0 0 -3px; border-radius: 50%;
-    background: rgba(255,255,255,0.85); box-shadow: 0 0 6px rgba(0,0,0,0.6);
-    opacity: 0; transition: opacity .3s;
-  }
-  #hud.playing #crosshair { opacity: 1; }
-  #fps {
-    position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 10px;
-    font-size: 11px; letter-spacing: .5px; color: rgba(170,200,230,.6);
-    font-variant-numeric: tabular-nums;
-  }
-  #build {
-    position: absolute; right: 8px; bottom: calc(6px + env(safe-area-inset-bottom));
-    font-size: 10px; opacity: .3;
-  }
+  #crosshair { position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: rgba(255,255,255,.7); box-shadow: 0 0 6px rgba(0,0,0,.7); opacity: 0; transition: opacity .3s; }
+  #hud.playing #crosshair { opacity: .8; }
+  #fps { position: absolute; top: calc(8px + env(safe-area-inset-top)); right: 10px; font-size: 11px; color: rgba(220,200,170,.55); font-variant-numeric: tabular-nums; }
+  #build { position: absolute; right: 8px; bottom: calc(6px + env(safe-area-inset-bottom)); font-size: 10px; opacity: .3; }
 
-  /* start / pause overlay */
-  #overlay {
-    position: fixed; inset: 0; z-index: 20;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    gap: 18px; text-align: center; padding: 24px;
-    background: radial-gradient(circle at 70% 75%, rgba(214,138,90,.35), rgba(16,32,63,.9));
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    transition: opacity .4s;
-  }
+  /* interaction prompt */
+  #prompt { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); pointer-events: none;
+    font-size: 15px; font-weight: 600; letter-spacing: .3px; padding: 8px 14px; border-radius: 10px;
+    background: rgba(15,10,6,.6); border: 1px solid rgba(255,200,140,.35); color: #ffe6c2;
+    backdrop-filter: blur(6px); opacity: 0; transition: opacity .15s; white-space: nowrap; }
+  #prompt.show { opacity: 1; }
+  #prompt .key { display: inline-block; min-width: 20px; text-align: center; padding: 1px 6px; margin-right: 7px; border-radius: 6px; background: rgba(255,210,150,.22); border: 1px solid rgba(255,210,150,.5); font-weight: 800; }
+
+  /* dialogue / message panel */
+  #dialogue { position: absolute; left: 50%; bottom: 11%; transform: translateX(-50%); width: min(560px, 88vw); pointer-events: none;
+    background: linear-gradient(180deg, rgba(20,13,8,.82), rgba(12,8,5,.9)); border: 1px solid rgba(255,190,120,.3);
+    border-left: 3px solid #ff9d4d; border-radius: 12px; padding: 16px 18px; opacity: 0; transition: opacity .2s; backdrop-filter: blur(10px); z-index: 12; }
+  #dialogue.show { opacity: 1; }
+  #dialogue .who { font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; color: #ffb066; margin-bottom: 6px; font-weight: 700; }
+  #dialogue .line { font-size: 15px; line-height: 1.5; color: #f0e6d8; }
+  #dialogue .hint { margin-top: 10px; font-size: 11px; opacity: .55; }
+
+  /* overlay / start */
+  #overlay { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; padding: 24px;
+    background: radial-gradient(120% 90% at 50% 80%, rgba(255,150,60,.22), rgba(18,10,6,.92)); backdrop-filter: blur(8px); transition: opacity .5s; }
   #overlay.hidden { opacity: 0; pointer-events: none; }
-  .logo {
-    font-size: 40px; font-weight: 900; letter-spacing: 4px;
-    background: linear-gradient(90deg,#ffd2a0,#dfe7ff 60%,#9fb6e0);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-    text-shadow: 0 0 40px rgba(255,200,150,.25);
-  }
-  .sub { font-size: 14px; opacity: .7; max-width: 360px; line-height: 1.5; }
-  .keys { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
-  .key { font-size: 12px; padding: 6px 12px; border-radius: 10px;
-    background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.14); }
-  .play-btn {
-    pointer-events: auto; cursor: pointer; margin-top: 8px;
-    padding: 15px 46px; border-radius: 30px; border: 1px solid rgba(255,255,255,.35);
-    font-size: 18px; font-weight: 700; color: #fff;
-    background: linear-gradient(135deg, rgba(110,90,255,.6), rgba(255,90,180,.5));
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 12px 30px rgba(124,92,255,.45);
-  }
+  .logo { font-size: 38px; font-weight: 900; letter-spacing: 5px; background: linear-gradient(90deg,#ffd9a0,#ff8a4c 55%,#c25cff); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: 0 0 36px rgba(255,150,80,.3); }
+  .tag { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,200,150,.6); margin-top: -8px; }
+  .sub { font-size: 14px; opacity: .75; max-width: 380px; line-height: 1.55; }
+  .keys { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .key2 { font-size: 12px; padding: 6px 11px; border-radius: 9px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.13); }
+  .play-btn { pointer-events: auto; cursor: pointer; margin-top: 6px; padding: 14px 44px; border-radius: 30px; border: 1px solid rgba(255,210,160,.4); font-size: 18px; font-weight: 700; color: #fff;
+    background: linear-gradient(135deg, rgba(255,140,60,.6), rgba(200,90,255,.45)); box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 12px 30px rgba(255,130,60,.35); }
   .play-btn:active { transform: scale(.96); }
-  #loading { font-size: 13px; opacity: .6; }
+  .play-btn[disabled] { opacity: .5; cursor: default; }
+  #bar { width: 240px; height: 5px; border-radius: 4px; background: rgba(255,255,255,.12); overflow: hidden; }
+  #bar > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg,#ffb066,#ff7a3c); transition: width .2s; }
+  #loadtxt { font-size: 12px; opacity: .6; }
 
-  /* mobile controls */
   #touch { position: fixed; inset: 0; z-index: 15; display: none; }
-  #hud.playing.touch ~ #touch, body.touch #touch { }
-  #stick {
-    position: absolute; left: 24px; bottom: calc(28px + env(safe-area-inset-bottom));
-    width: 120px; height: 120px; border-radius: 50%;
-    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.15);
-    pointer-events: auto;
-  }
-  #nub {
-    position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px;
-    border-radius: 50%; background: rgba(150,200,255,.35); border: 1px solid rgba(200,230,255,.5);
-  }
+  #stick { position: absolute; left: 24px; bottom: calc(28px + env(safe-area-inset-bottom)); width: 116px; height: 116px; border-radius: 50%; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.15); pointer-events: auto; }
+  #nub { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; border-radius: 50%; background: rgba(255,210,160,.3); border: 1px solid rgba(255,220,180,.5); }
+  #useBtn { position: absolute; right: 26px; bottom: calc(52px + env(safe-area-inset-bottom)); width: 84px; height: 84px; border-radius: 50%; pointer-events: auto; display: none;
+    background: rgba(255,150,70,.25); border: 2px solid rgba(255,190,120,.6); color: #ffe6c2; font-weight: 800; font-size: 15px; }
+  body.touch #useBtn.show { display: block; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="hud">
   <div id="crosshair"></div>
+  <div id="prompt"></div>
   <div id="fps"></div>
   <div id="build"></div>
 </div>
-<div id="touch"><div id="stick"><div id="nub"></div></div></div>
+<div id="dialogue"><div class="who"></div><div class="line"></div><div class="hint">[E] / Tippen zum Schließen</div></div>
+<div id="touch"><div id="stick"><div id="nub"></div></div><button id="useBtn">USE</button></div>
 <div id="overlay">
-  <div class="logo">BLUE HOUR</div>
-  <div class="sub">Ein kleiner Stadtspaziergang zur blauen Stunde. Tiefe Sonne, lange Schatten, nasser Asphalt.</div>
+  <div class="logo">SUNSET BLOCK</div>
+  <div class="tag">Cyberpunk · Golden Hour</div>
+  <div class="sub">Eine enge Großstadtgasse einer Inselstadt der nahen Zukunft. Tiefe goldene Abendsonne, lange Schatten, staubige Luft. Erkunde den Block.</div>
   <div class="keys">
-    <span class="key">WASD / Pfeile — Laufen</span>
-    <span class="key">Maus — Umsehen</span>
-    <span class="key">Shift — Sprinten</span>
-    <span class="key">Esc — Pause</span>
+    <span class="key2">WASD — Laufen</span><span class="key2">Maus — Umsehen</span><span class="key2">Shift — Rennen</span><span class="key2">E — Interagieren</span>
   </div>
-  <div id="loading">Lade Welt …</div>
-  <button class="play-btn" id="play" style="display:none">Betreten</button>
+  <div id="bar"><i></i></div>
+  <div id="loadtxt">Lade Assets …</div>
+  <button class="play-btn" id="play" disabled>Betreten</button>
 </div>
-
 <script type="importmap">
-{
-  "imports": {
-    "three": "./libs/three.module.js",
-    "three/addons/": "./libs/jsm/"
-  }
-}
+{ "imports": { "three": "./libs/three.module.js", "three/addons/": "./libs/jsm/" } }
 </script>
 <script type="module" src="./js/game.js"></script>
 </body>
